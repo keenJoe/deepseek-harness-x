@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Use this package to keep an ordered, persistent list of project directories and the sessions run in each directory. Hosts can build project sidebars, hide sessions from grouping without deleting their histories, and remove projects without deleting folders, files, or sessions. Re-adding a removed directory creates a fresh project; an existing project's sessions stay grouped when its directory disappears. Choose it for GUI or host workflows that need durable project grouping; it is invisible to models and adds no prompt or request-context cost, but requires session persistence and storage backends.
+Use this package to keep an ordered, persistent list of project directories and the sessions run in each. Hosts build project sidebars, hide sessions from grouping without deleting history, and remove projects without deleting folders, files, or sessions. Re-adding a removed directory starts a fresh project; an existing project's sessions stay grouped when its directory disappears. Choose it for GUI or host workflows that need durable grouping; it is invisible to models. A logged-in `user` principal is confined to its own workspaces and accounted sessions, while the owner and trusted in-process code keep the global registry.
 
 ## Table of Contents
 
@@ -30,6 +30,10 @@ Use this package to give the product a project list: named directories the user 
 ### When to use it
 
 Use it when the product shows a persistent workspace surface — a sidebar, session grouping, or automation that names directories and orders them. It is invisible to the model, so it adds no token or request cost. Skip it when there is no grouping surface; nothing else in the harness needs it.
+
+### Per-user scoping
+
+A Remote call that carries a `user` principal is confined to the workspaces stamped with that user's canonical key. `create` and `createCanonical` stamp `owner` on new records; `list`, `get`, `resolveByPath`, `delete`, `insertBefore`, and the archive/pin sets all filter by that `owner`. Cross-user actions read as absent — a foreign `get` returns `undefined`, `delete` returns `false`, `insertBefore` throws `WorkspaceOrderInvalidError`, and archiving or pinning a foreign session throws `WorkspaceUnknownSessionError` — so one user can never observe or change another's workspaces. Creating a workspace at a path another user already owns fails. The owner principal resolves no key and keeps the complete registry; records created before partitioning, and those created by trusted in-process code, carry no `owner` and remain visible only to that global scope.
 
 ### Setting up
 
@@ -171,6 +175,7 @@ These limits define when the project list is a poor fit or needs special operati
 - **Archive and unarchive enforce different session checks** — a restore only drops an id from the archive set, so an entry whose session is gone still unarchives and leaves no unknown referent; a restore of an id that is not archived resolves without writing, while `archiveSession` rejects a session that is neither live nor persisted.
 - **The activity check and the archive write are not one atomic step** — a turn that starts between the providers' answer and the durable write is hidden while running, and every model step whose `agent/pre-step` precedes the write still runs with its tool calls; the API Session Controller's gate ends the first step proposed after the write as `blocked`, so the exposure is bounded by that write's latency, in practice one model step.
 - **Re-adding a directory starts fresh** — after removal, adding the same directory again creates a new project with an empty session list; the old sessions do not come back automatically.
+- **Partition is registry-level, not backend routing** — a `user` principal is confined here, but storage and session-persistence backends still see one global root; partition the durable roots and route writes per user in the backend. A session not yet attached to any workspace has no accountable owner, so a `user` cannot archive or pin it; live-session reads outside this registry are unscoped.
 
 <a id="dev-note"></a>
 ### Dev Note

@@ -161,14 +161,41 @@ createPeer(options: { readonly principal: Principal; readonly interactions?: 'an
 admitConnection(request: ConnectionTrustRequest): ConnectionAdmission
 
 /**
- * Authenticate one frontend index request, owning a token redirect or 401.
- * The cookie this mints is `Secure` when the mounted Web carrier serves TLS,
- * which only that listener's protocol decides.
+ * Authenticate one frontend index request. A logged-in session renders for its
+ * user Peer, a single-user deployment renders for the bootstrap owner Peer, and a
+ * hosted deployment's launch token redirects into the login flow. The cookie a
+ * single-user deployment mints is `Secure` when the mounted Web carrier serves
+ * TLS, which only that listener's protocol decides.
  * @param request - root or configured-index HTTP request.
- * @param response - response owned when the result is false.
- * @returns true only when the frontend may serve index.html.
+ * @param response - response owned when no Peer is returned.
+ * @returns the Peer the index renders for, or undefined after writing a redirect or 401.
  */
-authorizeIndex(request: ConnectionIndexRequest, response: ConnectionIndexResponse): boolean
+authorizeIndex(request: ConnectionIndexRequest, response: ConnectionIndexResponse): PeerScope | undefined
+
+/**
+ * Start one browser login: select a registered identity provider and redirect to
+ * its authorization endpoint; without a registered provider, return to the mount root.
+ * @param request - GET request, optionally naming `provider`.
+ * @param response - response owned to completion.
+ */
+authorizeLogin(request: ConnectionIndexRequest, response: ConnectionIndexResponse): void
+
+/**
+ * Complete one browser login: exchange the provider code, persist the session
+ * record, and mint the signed session cookie.
+ * @param request - provider callback carrying `code` and `state`.
+ * @param response - response owned to completion.
+ * @returns resolution after the redirect is written.
+ */
+authorizeLoginCallback(request: ConnectionIndexRequest, response: ConnectionIndexResponse): Promise<void>
+
+/**
+ * End one browser session: delete its durable record and expire the cookie.
+ * @param request - logout request carrying the session cookie.
+ * @param response - response owned to completion.
+ * @returns resolution after the record is deleted and the redirect is written.
+ */
+authorizeLogout(request: ConnectionIndexRequest, response: ConnectionIndexResponse): Promise<void>
 
 /**
  * Add the fresh process token to an ordinary Web application URL.

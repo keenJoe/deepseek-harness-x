@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Proveedores de identidad",
+    "description": "Registra los adaptadores de identidad del despliegue y resuelve el que selecciona un inicio de sesión alojado."
+  }
+}

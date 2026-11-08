@@ -59,9 +59,10 @@ describe('experimental Inspector Host DevTools routes', () => {
       registerUpgrade: (route) => { upgrades.push(route); return () => {} },
     }
     context.provide('webServer', webServer as WebServer)
-    const auth: Pick<BrowserAuth, 'isAuthenticated' | 'authenticateApi' | 'authorizeIndex'> = {
+    const auth: Pick<BrowserAuth, 'isAuthenticated' | 'authenticateApi' | 'sessionId' | 'authorizeIndex'> = {
       isAuthenticated: () => true,
       authenticateApi: () => undefined,
+      sessionId: () => undefined,
       authorizeIndex: (_request, response) => {
         if (options.indexAllowed?.() !== false) return true
         response.writeHead(401)
@@ -69,7 +70,10 @@ describe('experimental Inspector Host DevTools routes', () => {
         return false
       },
     }
-    new HostConnectionService(context, [], auth as BrowserAuth)
+    // No session is ever read by these routes: the fake credential owner answers
+    // the only admission call, and the session store stays empty.
+    const sessions = { get: () => undefined, put: async () => undefined, delete: async () => true } as never
+    new HostConnectionService(context, [], auth as BrowserAuth, sessions)
     const messages: Message[] = []
     context.logger.exporter({ levels: { default: 3 }, export: (message) => { messages.push(message) } })
     options.before?.(context)

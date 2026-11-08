@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Enrutador multiusuario",
+    "description": "Dirige cada navegador con sesión a su propio backend desde una URL de entrada."
+  }
+}

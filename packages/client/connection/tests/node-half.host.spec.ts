@@ -9,8 +9,18 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { AttachmentStore } from '@deepseek-ai/dsh-attachment'
 import type { CredentialProvider } from '@deepseek-ai/dsh-credentials'
 import type { IndexInjection, WebServer, WebRoute, WebUpgradeRoute } from '@deepseek-ai/dsh-host-webserver'
+import type { IdentityProvider } from '@deepseek-ai/dsh-identity-protocol'
+// The deterministic provider is a package-internal fixture, not public API.
+import { MockIdentityProvider } from '../../../identity/identity-protocol/src/mock.ts'
+import type { BrowserSessionRecord } from '../src/index.ts'
 import {
   API_PATH,
+  CONNECT_PATH,
+  LOGIN_CALLBACK_PATH,
+  LOGIN_PATH,
+  LOGOUT_PATH,
+  PENDING_LOGIN_LIFETIME_MILLISECONDS,
+  PendingLogins,
   RpcId,
   apply,
   inject,
@@ -98,22 +108,55 @@ function fakeResponse(): {
   return { response, state }
 }
 
+/** In-memory browser-session table standing in for the mounted storage-domain facility. */
+class FakeSessionTable {
+  private readonly records = new Map<string, BrowserSessionRecord>()
+
+  get(key: string): BrowserSessionRecord | undefined { return this.records.get(key) }
+
+  async put(key: string, value: BrowserSessionRecord): Promise<void> { this.records.set(key, value) }
+
+  async delete(key: string): Promise<boolean> { return this.records.delete(key) }
+
+  /** Every persisted record, in insertion order. */
+  entries(): readonly (readonly [string, BrowserSessionRecord])[] { return [...this.records.entries()] }
+
+  /** The domain handle Connection opens and closes around this table. */
+  domain(): { table(name: string): FakeSessionTable; close(): Promise<void> } {
+    return { table: () => this, close: async () => {} }
+  }
+}
+
+/**
+ * Provide the browser-session domain facility in memory: Connection opens the
+ * `sessions` table during apply and reads it back on admission.
+ */
+function provideSessionDomain(ctx: Context): FakeSessionTable {
+  const table = new FakeSessionTable()
+  ctx.provide('storageDomain', { open: async () => table.domain() } as never)
+  return table
+}
+
 async function mounted(
   config?: ConnectionConfig,
   protocol: WebServer['protocol'] = 'http:',
   credentials?: CredentialProvider,
+  providers?: IdentityProviderRegistry,
 ): Promise<{
   ctx: Context
   routes: WebRoute[]
   upgrades: WebUpgradeRoute[]
   connection: HostConnectionHandle
+  sessions: FakeSessionTable
   dispose: () => Promise<void>
 }> {
   const ctx = new Context()
   const routes: WebRoute[] = []
   const upgrades: WebUpgradeRoute[] = []
+  const sessions = provideSessionDomain(ctx)
   if (credentials === undefined) provideBrowserCredentials(ctx)
   else ctx.provide('credentials', credentials)
+  if (providers !== undefined) ctx.provide('identityProviders', providers as never)
   ctx.provide('webServer', fakeHttpServer(routes, upgrades, '127.0.0.1', protocol) as WebServer)
   const fiber = ctx.plugin({ inject: [...inject], apply }, config)
   await fiber.await()
@@ -122,7 +165,22 @@ async function mounted(
     routes,
     upgrades,
     connection: ctx.get('connection') as HostConnectionHandle,
+    sessions,
     dispose: () => fiber.dispose(),
+  }
+}
+
+/** Resolve registered adapters the way the identity-provider service does. */
+interface IdentityProviderRegistry {
+  list(): readonly string[]
+  get(id: string): IdentityProvider | undefined
+}
+
+/** Registry fake over fixed adapters: insertion order decides the listing. */
+function registry(...adapters: IdentityProvider[]): IdentityProviderRegistry {
+  return {
+    list: () => adapters.map(adapter => adapter.id),
+    get: id => adapters.find(adapter => adapter.id === id),
   }
 }
 
@@ -200,6 +258,7 @@ describe('connection node half', () => {
 
   it('provides the carrier-neutral service without a Web server', async () => {
     const ctx = new Context()
+    provideSessionDomain(ctx)
     provideBrowserCredentials(ctx)
     const fiber = ctx.plugin({ inject: [...inject], apply })
     try {
@@ -216,6 +275,7 @@ describe('connection node half', () => {
     const ctx = new Context()
     const routes: WebRoute[] = []
     const upgrades: WebUpgradeRoute[] = []
+    provideSessionDomain(ctx)
     provideBrowserCredentials(ctx)
     const fiber = ctx.plugin({ inject: [...inject], apply }, { trustedHosts: ['harness.example'] })
     try {
@@ -337,6 +397,7 @@ describe('connection node half', () => {
     const routes: WebRoute[] = []
     const upgrades: WebUpgradeRoute[] = []
     const ctx = new Context()
+    provideSessionDomain(ctx)
     provideBrowserCredentials(ctx)
     ctx.provide('webServer', fakeHttpServer(routes, upgrades) as WebServer)
     const fiber = ctx.plugin({ inject: [...inject], apply }, { trustedHosts: ['harness.internal/path'] })
@@ -345,9 +406,9 @@ describe('connection node half', () => {
     expect(upgrades).toHaveLength(0)
   })
 
-  it('registers the API and connect HTTP routes and removes them with the fiber', async () => {
+  it('registers the API, connect, and login HTTP routes and removes them with the fiber', async () => {
     const { routes, upgrades, dispose } = await mounted()
-    expect(routes).toHaveLength(2)
+    expect(routes.map(route => route.path)).toEqual([API_PATH, CONNECT_PATH, LOGIN_PATH, LOGIN_CALLBACK_PATH, LOGOUT_PATH])
     expect(routes[0]).toMatchObject({ kind: 'prefix', path: API_PATH })
     expect(upgrades).toHaveLength(0)
     await dispose()
@@ -439,11 +500,12 @@ describe('connection node half', () => {
   it('provides a disposable dedicated RPC channel', async () => {
     const ctx = new Context()
     const routes: WebRoute[] = []
+    provideSessionDomain(ctx)
     provideBrowserCredentials(ctx)
     ctx.provide('webServer', fakeHttpServer(routes, []) as WebServer)
     const fiber = ctx.plugin({ inject: [...inject], apply })
     await fiber.await()
-    expect(routes).toHaveLength(2)
+    expect(routes).toHaveLength(5)
     expect(routes[0]).toMatchObject({ kind: 'prefix', path: API_PATH })
 
     const connection = ctx.get('connection') as HostConnectionHandle
@@ -480,7 +542,7 @@ describe('connection node half', () => {
     expect(() => connection.rpc.handle('/rpc', async () => ({ ok: true, value: null })))
       .toThrow(/duplicate route/)
     await remove()
-    expect(routes.map(candidate => candidate.path)).toEqual([API_PATH, '/connect'])
+    expect(routes.map(candidate => candidate.path)).toEqual([API_PATH, '/connect', LOGIN_PATH, LOGIN_CALLBACK_PATH, LOGOUT_PATH])
     await fiber.dispose()
     expect(routes).toHaveLength(0)
   })
@@ -488,6 +550,7 @@ describe('connection node half', () => {
   it('dispatches claimed /api endpoints and withdraws the claim', async () => {
     const ctx = new Context()
     const routes: WebRoute[] = []
+    provideSessionDomain(ctx)
     provideBrowserCredentials(ctx)
     ctx.provide('webServer', fakeHttpServer(routes, []) as WebServer)
     const fiber = ctx.plugin({ inject: [...inject], apply }, { trustedHosts: ['harness.example'] })
@@ -614,6 +677,7 @@ describe('connection node half', () => {
   it('applies the configured trust fence and JSON envelope checks to generic channels', async () => {
     const ctx = new Context()
     const routes: WebRoute[] = []
+    provideSessionDomain(ctx)
     provideBrowserCredentials(ctx)
     ctx.provide('webServer', fakeHttpServer(routes, []) as WebServer)
     const fiber = ctx.plugin({ inject: [...inject], apply }, { trustedHosts: ['harness.example'] })
@@ -739,7 +803,7 @@ describe('operator-scoped connect', () => {
       const denied = fakeResponse()
       expect(host.connection.authorizeIndex(fakeRequest(
         { host: 'localhost', cookie: api.cookie }, '/',
-      ), denied.response)).toBe(false)
+      ), denied.response)).toBeUndefined()
       expect(denied.state.status).toBe(401)
     } finally { await host.dispose() }
   })
@@ -870,7 +934,7 @@ describe('operator-scoped connect', () => {
       await two.release()
       expect(admitted(host.connection, browser.cookie)).toBe(browserPeer)
       const refresh = fakeResponse()
-      expect(host.connection.authorizeIndex(fakeRequest({ host: 'localhost', cookie: browser.cookie }, '/'), refresh.response)).toBe(true)
+      expect(host.connection.authorizeIndex(fakeRequest({ host: 'localhost', cookie: browser.cookie }, '/'), refresh.response)).toBe(host.connection.browserPeer)
       const cleanup = vi.fn()
       browserPeer.ctx.effect(() => cleanup)
       await host.dispose()
@@ -960,5 +1024,235 @@ describe('connection node half over a real HTTP server', () => {
       await close()
       await dispose()
     }
+  })
+})
+
+/** Hosted browser login: /login, /login/callback, and /logout over a session store. */
+describe('hosted browser login', () => {
+  const alice = new MockIdentityProvider('acme', [{ id: 'alice', tenantId: 'tenant-a', displayName: 'Alice' }])
+  const bob = new MockIdentityProvider('globex', [{ id: 'bob', tenantId: 'tenant-b', displayName: 'Bob' }])
+
+  type Host = Awaited<ReturnType<typeof mounted>>
+
+  /** Invoke one registered exact route and record the response it wrote. */
+  async function request(
+    host: Host,
+    path: string,
+    headers: Record<string, string>,
+    url = path,
+  ): Promise<{ status: number | undefined; headers: Record<string, string>; body?: unknown }> {
+    const route = host.routes.find(candidate => candidate.path === path)
+    if (route === undefined) throw new Error(`route ${path} was not registered`)
+    const recorded = fakeResponse()
+    await route.handler(fakeRequest(headers, url), recorded.response)
+    return { status: recorded.state.status, headers: recorded.state.headers ?? {}, body: recorded.state.body }
+  }
+
+  /** Start a login and follow the provider callback its redirect names. */
+  async function login(host: Host, query = ''): Promise<{ cookie: string; state: string }> {
+    const started = await request(host, LOGIN_PATH, { host: 'localhost' }, `${LOGIN_PATH}${query}`)
+    expect(started.status).toBe(303)
+    const target = new URL(started.headers['location'] ?? 'http://invalid')
+    const finished = await request(host, LOGIN_CALLBACK_PATH, { host: 'localhost' }, `${LOGIN_CALLBACK_PATH}${target.search}`)
+    expect(finished.status).toBe(303)
+    const setCookie = finished.headers['set-cookie']
+    if (setCookie === undefined) throw new Error('login callback did not set a session cookie')
+    return { cookie: setCookie.split(';', 1)[0]!, state: target.searchParams.get('state') ?? '' }
+  }
+
+  it('sends a launch-token or anonymous index request into the login flow instead of minting an owner cookie', async () => {
+    const host = await mounted(undefined, 'http:', undefined, registry(alice))
+    try {
+      const tokenized = new URL(host.connection.authenticatedUrl('http://localhost'))
+      const redirected = fakeResponse()
+      expect(host.connection.authorizeIndex(
+        fakeRequest({ host: 'localhost' }, `${tokenized.pathname}${tokenized.search}`),
+        redirected.response,
+      )).toBeUndefined()
+      expect(redirected.state).toMatchObject({ status: 303, headers: { location: './login' } })
+
+      const anonymous = fakeResponse()
+      expect(host.connection.authorizeIndex(fakeRequest({ host: 'localhost' }, '/'), anonymous.response)).toBeUndefined()
+      expect(anonymous.state).toMatchObject({ status: 303, headers: { location: './login' } })
+    } finally { await host.dispose() }
+  })
+
+  it('returns to the mount root when no provider is registered', async () => {
+    const host = await mounted()
+    try {
+      expect(await request(host, LOGIN_PATH, { host: 'localhost' })).toMatchObject({ status: 303, headers: { location: '../' } })
+    } finally { await host.dispose() }
+  })
+
+  it('redirects /login to the selected provider and refuses an ambiguous or unknown selection', async () => {
+    const single = await mounted(undefined, 'http:', undefined, registry(alice))
+    try {
+      const started = await request(single, LOGIN_PATH, { host: 'localhost' })
+      expect(started.status).toBe(303)
+      expect(started.headers['location']).toMatch(/^http:\/\/localhost\/login\/callback\?code=alice&state=/)
+    } finally { await single.dispose() }
+
+    const both = await mounted(undefined, 'http:', undefined, registry(alice, bob))
+    try {
+      const ambiguous = await request(both, LOGIN_PATH, { host: 'localhost' })
+      expect(ambiguous.status).toBe(400)
+      expect(ambiguous.body).toContain('acme, globex')
+      expect((await request(both, LOGIN_PATH, { host: 'localhost' }, `${LOGIN_PATH}?provider=nope`)).status).toBe(400)
+      const selected = await request(both, LOGIN_PATH, { host: 'localhost' }, `${LOGIN_PATH}?provider=globex`)
+      expect(selected.headers['location']).toContain('code=bob')
+    } finally { await both.dispose() }
+  })
+
+  it('applies the Host fence to every login route', async () => {
+    const host = await mounted({ trustedHosts: ['harness.example'] }, 'http:', undefined, registry(alice))
+    try {
+      expect((await request(host, LOGIN_PATH, { host: 'evil.example' })).status).toBe(403)
+      expect((await request(host, LOGIN_CALLBACK_PATH, { host: 'evil.example' })).status).toBe(403)
+      expect((await request(host, LOGOUT_PATH, { host: 'evil.example' })).status).toBe(403)
+    } finally { await host.dispose() }
+  })
+
+  it('persists one session record per login and admits its user Peer', async () => {
+    const host = await mounted(undefined, 'http:', undefined, registry(alice))
+    try {
+      const { cookie: firstCookie, state } = await login(host)
+      const admitted = host.connection.admit(fakeRequest({ host: 'localhost', cookie: firstCookie }))
+      if (!('peer' in admitted)) throw new Error('login cookie was refused')
+      expect(admitted.peer.principal).toEqual({
+        kind: 'user', providerId: 'acme', tenantId: 'tenant-a', subjectId: 'alice', displayName: 'Alice',
+      })
+      const again = host.connection.admit(fakeRequest({ host: 'localhost', cookie: firstCookie }))
+      expect('peer' in again ? again.peer : undefined).toBe(admitted.peer)
+
+      const records = host.sessions.entries()
+      expect(records).toHaveLength(1)
+      expect(records[0]?.[1]).toMatchObject({ providerId: 'acme', userKey: 'acme:tenant-a:alice', csrf: state })
+    } finally { await host.dispose() }
+  })
+
+  it('partitions two providers into distinct user Peers', async () => {
+    const host = await mounted(undefined, 'http:', undefined, registry(alice, bob))
+    try {
+      const peers = []
+      for (const query of ['?provider=acme', '?provider=globex']) {
+        const { cookie } = await login(host, query)
+        const admitted = host.connection.admit(fakeRequest({ host: 'localhost', cookie }))
+        if (!('peer' in admitted)) throw new Error('login cookie was refused')
+        peers.push(admitted.peer)
+      }
+      expect(peers[0]).not.toBe(peers[1])
+      expect(peers[0]?.principal).toMatchObject({ providerId: 'acme', tenantId: 'tenant-a', subjectId: 'alice' })
+      expect(peers[1]?.principal).toMatchObject({ providerId: 'globex', tenantId: 'tenant-b', subjectId: 'bob' })
+    } finally { await host.dispose() }
+  })
+
+  it('renders the index for the logged-in user Peer and refuses a logged-out session', async () => {
+    const host = await mounted(undefined, 'http:', undefined, registry(alice))
+    try {
+      const { cookie } = await login(host)
+      const rendered = fakeResponse()
+      const peer = host.connection.authorizeIndex(fakeRequest({ host: 'localhost', cookie }, '/'), rendered.response)
+      expect(peer?.principal).toMatchObject({ kind: 'user', subjectId: 'alice' })
+
+      const loggedOut = await request(host, LOGOUT_PATH, { host: 'localhost', cookie })
+      expect(loggedOut.status).toBe(303)
+      expect(loggedOut.headers['set-cookie']).toContain('Max-Age=0')
+
+      const refused = fakeResponse()
+      expect(host.connection.authorizeIndex(fakeRequest({ host: 'localhost', cookie }, '/'), refused.response)).toBeUndefined()
+      expect(refused.state.status).toBe(401)
+      expect(host.connection.admit(fakeRequest({ host: 'localhost', cookie }))).toEqual({ rejection: 401 })
+    } finally { await host.dispose() }
+  })
+
+  it('redirects a logout without a session cookie and leaves a single-user owner cookie alone', async () => {
+    const hosted = await mounted(undefined, 'http:', undefined, registry(alice))
+    try {
+      const anonymous = await request(hosted, LOGOUT_PATH, { host: 'localhost' })
+      expect(anonymous.status).toBe(303)
+      expect(anonymous.headers['set-cookie']).toContain('Max-Age=0')
+    } finally { await hosted.dispose() }
+
+    const single = await mounted()
+    try {
+      const ownerCookie = browserCookie(single.connection, 'localhost')
+      expect(single.connection.admit(fakeRequest({ host: 'localhost', cookie: ownerCookie }))).toEqual({ peer: single.connection.browserPeer })
+    } finally { await single.dispose() }
+  })
+
+  it('refuses an unknown, replayed, or unexchangeable callback', async () => {
+    const host = await mounted(undefined, 'http:', undefined, registry(alice))
+    try {
+      expect((await request(host, LOGIN_CALLBACK_PATH, { host: 'localhost' },
+        `${LOGIN_CALLBACK_PATH}?code=alice&state=unknown`)).status).toBe(401)
+
+      const { state } = await login(host)
+      expect((await request(host, LOGIN_CALLBACK_PATH, { host: 'localhost' },
+        `${LOGIN_CALLBACK_PATH}?code=alice&state=${encodeURIComponent(state)}`)).status).toBe(401)
+
+      const started = await request(host, LOGIN_PATH, { host: 'localhost' })
+      const pending = new URL(started.headers['location'] ?? 'http://invalid').searchParams.get('state') ?? ''
+      expect((await request(host, LOGIN_CALLBACK_PATH, { host: 'localhost' },
+        `${LOGIN_CALLBACK_PATH}?code=mallory&state=${encodeURIComponent(pending)}`)).status).toBe(401)
+    } finally { await host.dispose() }
+  })
+
+  it('refuses an expired session record on admission and on the index', async () => {
+    const host = await mounted(undefined, 'http:', undefined, registry(alice))
+    try {
+      const { cookie } = await login(host)
+      const [entry] = host.sessions.entries()
+      if (entry === undefined) throw new Error('login did not persist a session record')
+      await host.sessions.put(entry[0], { ...entry[1], expiresAt: Date.now() - 1 })
+      expect(host.connection.admit(fakeRequest({ host: 'localhost', cookie }))).toEqual({ rejection: 401 })
+      const refused = fakeResponse()
+      expect(host.connection.authorizeIndex(fakeRequest({ host: 'localhost', cookie }, '/'), refused.response)).toBeUndefined()
+      expect(refused.state.status).toBe(401)
+    } finally { await host.dispose() }
+  })
+
+  it('reports a provider that cannot build its authorization endpoint', async () => {
+    const broken: IdentityProvider = {
+      id: 'broken',
+      scopes: [],
+      authorizationUrl() { throw new Error('no endpoint') },
+      exchange() { return Promise.reject(new Error('unreachable')) },
+    }
+    const host = await mounted(undefined, 'http:', undefined, registry(broken))
+    try {
+      expect((await request(host, LOGIN_PATH, { host: 'localhost' })).status).toBe(502)
+    } finally { await host.dispose() }
+  })
+})
+
+/** Process-local in-flight authorizations behind the login redirect. */
+describe('pending browser logins', () => {
+  const REDIRECT = 'http://localhost/login/callback'
+
+  it('mints single-use states that expire after their lifetime', () => {
+    const pending = new PendingLogins()
+    const { state, codeVerifier } = pending.begin('acme', REDIRECT, 1000)
+    expect(codeVerifier).toBeTypeOf('string')
+    expect(pending.consume(state, 1000)).toEqual({ providerId: 'acme', redirectUri: REDIRECT, codeVerifier, issuedAt: 1000 })
+    expect(pending.consume(state, 1000)).toBeUndefined()
+
+    const stale = pending.begin('acme', REDIRECT, 1000)
+    expect(pending.consume(stale.state, 1000 + PENDING_LOGIN_LIFETIME_MILLISECONDS + 1)).toBeUndefined()
+    expect(pending.consume('missing', 1000)).toBeUndefined()
+  })
+
+  it('prunes expired authorizations when it mints a new state', () => {
+    const pending = new PendingLogins()
+    const stale = pending.begin('acme', REDIRECT, 1000)
+    const live = pending.begin('acme', REDIRECT, 1000 + PENDING_LOGIN_LIFETIME_MILLISECONDS + 1)
+    expect(pending.consume(stale.state, 2000)).toBeUndefined()
+    expect(pending.consume(live.state, 4000)).toBeDefined()
+  })
+
+  it('drops every in-flight authorization on clear', () => {
+    const pending = new PendingLogins()
+    const { state } = pending.begin('acme', REDIRECT, 1000)
+    pending.clear()
+    expect(pending.consume(state, 1000)).toBeUndefined()
   })
 })

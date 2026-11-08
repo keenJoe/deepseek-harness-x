@@ -19,7 +19,8 @@ const sessionId = z.string().transform(value => brandString<SessionId>(value))
 /**
  * Durable shape of one workspace record. `path` is the `fs.realpath` canon
  * stamped at create; `sessionIds` is the ordered ownership account (array
- * order is display order); timestamps are ISO-8601 strings.
+ * order is display order); timestamps are ISO-8601 strings; `owner` is the
+ * optional per-user partition key stamped for a user-created record.
  */
 export const workspaceRecord = z.object({
   path: z.string(),
@@ -27,6 +28,13 @@ export const workspaceRecord = z.object({
   sessionIds: z.array(sessionId),
   createdAt: z.string(),
   updatedAt: z.string(),
+  /**
+   * Canonical partition key of the logged-in user that owns this workspace,
+   * stamped at create. Absent for records written before per-user
+   * partitioning (legacy/global) and for the owner principal, which sees and
+   * mutates every record.
+   */
+  owner: z.string().optional(),
 })
 
 /** One stored workspace record, inferred from {@link workspaceRecord}. */

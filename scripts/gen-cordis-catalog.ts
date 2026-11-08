@@ -87,6 +87,7 @@ export const SERVICE_PAGE: Record<string, string> = {
   compaction: 'compaction.md',
   cordisInspect: 'extensions.md',
   authorization: 'credentials.md',
+  identityProviders: 'identity.md',
   deepseekAccount: 'credentials.md',
   credentials: 'credentials.md',
   credentialsController: 'credentials.md',
@@ -1109,6 +1110,7 @@ export const TYPE_LINK_EXEMPTIONS: Readonly<Record<string, string>> = {
   TerminalFrame: 'Browser terminal stream frames are owned by packages/api/terminal-controller/README.md',
   TerminalRetentionFrame: 'Browser terminal window holds are owned by packages/api/terminal-controller/README.md',
   WebTerminalId: 'Browser terminal identity is owned by packages/api/terminal-controller/README.md',
+  IdentityProvider: 'identity adapter contract is owned by packages/identity/identity-protocol/README.md',
 }
 
 /** Repository data policy consumed by the Cordis catalog projector. */

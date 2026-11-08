@@ -1,0 +1,40 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/identity/user-principal/README.md
+/:
+  en: 4cdf6e9b6aabb4cb
+  zh: e26748c31eed3d07
+/deepseek-ai-dsh-user-principal:
+  en: 350405b432c11214
+  zh: 5cd028105ba5994c
+/deepseek-ai-dsh-user-principal/summary:
+  en: 3cce8817c8f78669
+  zh: 4db8f395336ee2a9
+/deepseek-ai-dsh-user-principal/table-of-contents:
+  en: 80b31a934611cb4a
+  zh: 05f3f7f9cb2fd881
+/deepseek-ai-dsh-user-principal/use-this-package:
+  en: bbff250eba0f1b89
+  zh: 0a618f05cc88ee2b
+/deepseek-ai-dsh-user-principal/use-this-package/when-to-use-it:
+  en: e434459204858d22
+  zh: f8ab6474d2e54eb9
+/deepseek-ai-dsh-user-principal/use-this-package/entry-point:
+  en: 747699c89662c081
+  zh: 9056babb43636e51
+/deepseek-ai-dsh-user-principal/understand-the-implementation:
+  en: 9e5f09cdd3f12533
+  zh: 41e786ed2411e9e2
+/deepseek-ai-dsh-user-principal/understand-the-implementation/why-it-is-a-plain-module:
+  en: 12b0861645689e2c
+  zh: 80ce89ad5cc7850d
+/deepseek-ai-dsh-user-principal/further-exploration:
+  en: c03b278abb64fb23
+  zh: aa5ff80f68e1f036
+/deepseek-ai-dsh-user-principal/known-limitations-and-deferred-work:
+  en: b0ca741339a06ca8
+  zh: 5da0efc439a4ab5b
+/deepseek-ai-dsh-user-principal/dev-note:
+  en: 5de1d6304e00c58f
+  zh: 8d8225361cfa29e5

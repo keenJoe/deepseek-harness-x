@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import {
   MockIdentityProvider,
   type MockIdentityPersona,
-} from '../src/identity/mock.ts'
+} from '../src/mock.ts'
 
 /** The personas one provider is built from; the array stays writable so a test can empty it. */
 function personas(): MockIdentityPersona[] {
@@ -46,7 +46,7 @@ describe('mock identity provider', () => {
 
   it('resolves a persona into a normalized actor, keeping what the provider issued', async () => {
     const provider = new MockIdentityProvider('mock', personas())
-    await expect(provider.exchange({ code: 'alice', redirectUri: 'https://relay.example/callback' })).resolves.toEqual({
+    await expect(provider.exchange({ code: 'alice', state: 'state-1', redirectUri: 'https://relay.example/callback' })).resolves.toEqual({
       providerId: 'mock',
       tenantId: 'tenant-a',
       subjectId: 'alice',
@@ -54,15 +54,15 @@ describe('mock identity provider', () => {
       avatarUrl: 'https://avatar.example/alice.png',
     })
     // A persona with no tenant, no display name, and no avatar receives the documented defaults.
-    await expect(provider.exchange({ code: 'bob', redirectUri: 'https://relay.example/callback' })).resolves.toEqual({
+    await expect(provider.exchange({ code: 'bob', state: 'state-2', redirectUri: 'https://relay.example/callback' })).resolves.toEqual({
       providerId: 'mock', tenantId: 'mock', subjectId: 'bob', displayName: 'bob',
     })
   })
 
   it('rejects an unknown callback code and an empty persona id', async () => {
     const provider = new MockIdentityProvider('mock', personas())
-    await expect(provider.exchange({ code: 'nobody', redirectUri: 'https://relay.example/callback' })).rejects.toThrow('mock identity callback code is unknown')
+    await expect(provider.exchange({ code: 'nobody', state: 'state-3', redirectUri: 'https://relay.example/callback' })).rejects.toThrow('mock identity callback code is unknown')
     const empty = new MockIdentityProvider('mock', [{ id: '' }])
-    await expect(empty.exchange({ code: '', redirectUri: 'https://relay.example/callback' })).rejects.toThrow('mock identity persona id must not be empty')
+    await expect(empty.exchange({ code: '', state: 'state-4', redirectUri: 'https://relay.example/callback' })).rejects.toThrow('mock identity persona id must not be empty')
   })
 })

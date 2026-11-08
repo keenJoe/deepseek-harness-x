@@ -1,0 +1,24 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "lib/types"
+  },
+  "include": [
+    "src"
+  ],
+  "references": [
+    {
+      "path": "../../typert/protocol"
+    },
+    {
+      "path": "../../util/home-paths"
+    },
+    {
+      "path": "../identity-protocol"
+    },
+    {
+      "path": "../../util/brand"
+    }
+  ]
+}

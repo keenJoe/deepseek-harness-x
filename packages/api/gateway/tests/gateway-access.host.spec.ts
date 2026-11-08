@@ -27,7 +27,7 @@ import TypertRegistry from '@deepseek-ai/dsh-typert-registry'
 import { z } from 'zod'
 import TypertGatewayService, { type TypertRemoteEventDispatch } from '@deepseek-ai/dsh-api-gateway'
 import { callResources, eventResources } from '../src/access.ts'
-import { provideBrowserCredentials } from './browser-credentials.ts'
+import { provideBrowserCredentials, provideBrowserSessionDomain } from './browser-credentials.ts'
 import { ownerPeer, peerFor } from './peer.ts'
 
 interface AccessAgent {
@@ -203,6 +203,7 @@ async function setup(options: { readonly connection?: boolean } = {}): Promise<{
   await ctx.plugin(TypertGatewayService)
   if (options.connection === true) {
     provideBrowserCredentials(ctx)
+    provideBrowserSessionDomain(ctx)
     await ctx.plugin({ inject: [...connectionInject], apply: applyConnection })
   }
   ctx.typert.resources.register('test-shelf', { field: 'shelfId' })
@@ -842,6 +843,7 @@ describe('Gateway forwarded events for non-owner Peers', () => {
     await ctx.plugin(RemoteAccessService)
     await ctx.plugin(TypertGatewayService)
     provideBrowserCredentials(ctx)
+    provideBrowserSessionDomain(ctx)
     await ctx.plugin({ inject: [...connectionInject], apply: applyConnection })
     const warn = vi.spyOn(ctx.logger, 'warn').mockImplementation(() => {})
     ctx.remoteAccess.registerPolicy('test-guest', { bindings: () => { throw new Error('binding store unavailable') } })

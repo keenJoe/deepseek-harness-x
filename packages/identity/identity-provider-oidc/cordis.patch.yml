@@ -1,0 +1,5 @@
+- insert:
+    - id: identity-provider-oidc
+      name: '@deepseek-ai/dsh-identity-provider-oidc'
+      # Deployment-configured: the provider needs an issuer, a client id, and scopes.
+      disabled: true

@@ -29,6 +29,8 @@ import type {
 
 export type * from './types.ts'
 export { REMOTE_ACCESS_SNAPSHOT_KEY } from './snapshot.ts'
+export { createUserAccessPolicy } from './user-policy.ts'
+export type { UserAccessFacts } from './user-policy.ts'
 
 /** The opening frame of a snapshot generation. */
 export type RemoteAccessBaseline = Extract<RemoteAccessFrame, { type: 'baseline' }>

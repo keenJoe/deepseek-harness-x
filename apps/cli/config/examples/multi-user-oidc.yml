@@ -1,0 +1,18 @@
+# Enable hosted multi-user login for one OpenID Connect issuer (`dsh web --patch`).
+#
+#   export DSH_OIDC_ISSUER=https://your-issuer.example.com
+#   export DSH_OIDC_CLIENT_ID=your-client-id
+#   export DSH_OIDC_CLIENT_SECRET=your-client-secret   # optional; public clients omit it
+#   pnpm dsh web --patch apps/cli/config/examples/multi-user-oidc.yml
+#
+# Every browser then has to complete this issuer's authorization code flow with PKCE before
+# it receives a session, and each signed-in person reads only the Sessions and Workspaces their
+# canonical user key owns. Without this overlay the shipped composition stays single-user.
+- id: identity-oidc
+  disabled: false
+  config:
+    id: !!js (process.env.DSH_OIDC_PROVIDER_ID ?? 'oidc')
+    issuer: !!js process.env.DSH_OIDC_ISSUER
+    clientId: !!js process.env.DSH_OIDC_CLIENT_ID
+    clientSecret: !!js process.env.DSH_OIDC_CLIENT_SECRET
+    defaultTenant: !!js process.env.DSH_OIDC_DEFAULT_TENANT

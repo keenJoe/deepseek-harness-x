@@ -1,6 +1,7 @@
 /** Live/persisted logical-corpus resolution for session-query. */
 
 import type { Context, Fiber } from '@deepseek-ai/cordis'
+import { isWithinRoot } from '@deepseek-ai/dsh-user-principal'
 import type { Session, SessionEvent, SessionHeader, SessionId , SessionLogOffset } from '@deepseek-ai/dsh-session'
 import type SessionPersistence from '@deepseek-ai/dsh-session-persistence'
 import type { SessionPersistenceSnapshot } from '@deepseek-ai/dsh-session-persistence'
@@ -57,15 +58,18 @@ export class SessionCorpus {
   /**
    * List the complete logical corpus with live precedence and cloned headers.
    * @param signal - optional cancellation for persistence listing.
+   * @param userRoot - when set, restrict to persisted records under this root and exclude live sessions.
    * @returns records in deterministic newest-first order.
    */
-  async listSessions(signal?: AbortSignal): Promise<SessionRecord[]> {
+  async listSessions(signal?: AbortSignal, userRoot?: string): Promise<SessionRecord[]> {
     signal?.throwIfAborted()
     const persistence = this._persistence
     const persisted = persistence === undefined ? [] : await listPersisted(persistence, signal)
     signal?.throwIfAborted()
     const records = new Map<SessionId, SessionRecord>()
-    for (const { header, formatStatus } of persisted) {
+    for (const snapshot of persisted) {
+      if (!isWithinUserRoot(snapshot, userRoot)) continue
+      const { header, formatStatus } = snapshot
       records.set(header.id, {
         header: structuredClone(header),
         live: false,
@@ -73,15 +77,19 @@ export class SessionCorpus {
         ...(formatStatus === undefined ? {} : { formatStatus }),
       })
     }
-    for (const session of this._ctx.sessions.list()) {
-      const durable = records.get(session.id)
-      if (durable !== undefined) assertSessionHeadersCompatible(session.header, durable.header)
-      records.set(session.id, {
-        header: structuredClone(session.header),
-        live: true,
-        persisted: durable !== undefined,
-        formatStatus: 'current',
-      })
+    // A user principal reads only its own persisted log root; live sessions
+    // carry no durable location and are excluded from a scoped listing.
+    if (userRoot === undefined) {
+      for (const session of this._ctx.sessions.list()) {
+        const durable = records.get(session.id)
+        if (durable !== undefined) assertSessionHeadersCompatible(session.header, durable.header)
+        records.set(session.id, {
+          header: structuredClone(session.header),
+          live: true,
+          persisted: durable !== undefined,
+          formatStatus: 'current',
+        })
+      }
     }
     return [...records.values()].sort(compareSessions)
   }
@@ -93,19 +101,26 @@ export class SessionCorpus {
    * failure cannot make current in-memory history unreadable.
    * @param sessionId - session to resolve.
    * @param signal - optional cancellation for persisted source resolution.
+   * @param userRoot - when set, skip live sessions and resolve only persisted records under this root.
    * @returns detached live-preferred header and events.
    */
-  async load(sessionId: SessionId, signal?: AbortSignal): Promise<LogicalSession> {
+  async load(sessionId: SessionId, signal?: AbortSignal, userRoot?: string): Promise<LogicalSession> {
     signal?.throwIfAborted()
-    const live = this._ctx.sessions.get(sessionId)
-    if (live !== undefined) {
-      const snapshot = snapshotLive(live)
-      signal?.throwIfAborted()
-      return snapshot
+    // A user principal cannot read live sessions: a scoped exact read falls
+    // straight through to its own persisted root below.
+    if (userRoot === undefined) {
+      const live = this._ctx.sessions.get(sessionId)
+      if (live !== undefined) {
+        const snapshot = snapshotLive(live)
+        signal?.throwIfAborted()
+        return snapshot
+      }
     }
     const persistence = this._persistence
     if (persistence === undefined) throw notFound(sessionId)
-    const listed = (await listPersisted(persistence, signal)).find(snapshot => snapshot.header.id === sessionId)
+    const listed = (await listPersisted(persistence, signal))
+      .filter(snapshot => isWithinUserRoot(snapshot, userRoot))
+      .find(snapshot => snapshot.header.id === sessionId)
     signal?.throwIfAborted()
     if (listed === undefined) throw notFound(sessionId)
     const loaded = await inspectPersisted(persistence, sessionId, signal)
@@ -134,19 +149,21 @@ export class SessionCorpus {
    * @param sessionIds - sessions to resolve in first-occurrence order.
    * @param project - synchronous fold that owns/clones every retained value.
    * @param signal - cancellation shared by listing and every persisted inspection.
+   * @param userRoot - when set, skip live sessions and resolve only persisted records under this root.
    * @returns one fulfilled or rejected projected result per unique requested id.
    */
   async projectMany<Value>(
     sessionIds: readonly SessionId[],
     project: (source: LogicalSessionSource) => Value,
     signal?: AbortSignal,
+    userRoot?: string,
   ): Promise<LogicalProjectionResult<Value>[]> {
     const ids = [...new Set(sessionIds)]
     signal?.throwIfAborted()
     const resolved = new Map<SessionId, LogicalProjectionResult<Value>>()
     const unresolved: SessionId[] = []
     for (const id of ids) {
-      const session = this._ctx.sessions.get(id)
+      const session = userRoot === undefined ? this._ctx.sessions.get(id) : undefined
       if (session === undefined) {
         unresolved.push(id)
       } else {
@@ -165,7 +182,8 @@ export class SessionCorpus {
 
     let persisted: readonly SessionPersistenceSnapshot[]
     try {
-      persisted = await listPersisted(persistence, signal)
+      persisted = (await listPersisted(persistence, signal))
+        .filter(snapshot => isWithinUserRoot(snapshot, userRoot))
       signal?.throwIfAborted()
     } catch (error: unknown) {
       if (signal?.aborted) signal.throwIfAborted()
@@ -178,7 +196,7 @@ export class SessionCorpus {
     const resolvePersisted = async (sessionId: SessionId): Promise<void> => {
       const listed = persistedById.get(sessionId)
       if (listed === undefined) {
-        const attached = this._ctx.sessions.get(sessionId)
+        const attached = userRoot === undefined ? this._ctx.sessions.get(sessionId) : undefined
         resolved.set(sessionId, attached === undefined
           ? { sessionId, status: 'rejected', reason: notFound(sessionId) }
           : projectSource(sessionId, sourceLive(attached), project, signal))
@@ -188,7 +206,7 @@ export class SessionCorpus {
         signal?.throwIfAborted()
         const loaded = await inspectPersisted(persistence, sessionId, signal)
         signal?.throwIfAborted()
-        const attached = this._ctx.sessions.get(sessionId)
+        const attached = userRoot === undefined ? this._ctx.sessions.get(sessionId) : undefined
         if (attached !== undefined) {
           resolved.set(sessionId, projectSource(sessionId, sourceLive(attached), project, signal))
           return
@@ -259,6 +277,22 @@ function orderedResults<Value>(
   resolved: ReadonlyMap<SessionId, LogicalProjectionResult<Value>>,
 ): LogicalProjectionResult<Value>[] {
   return ids.map(sessionId => resolved.get(sessionId) as LogicalProjectionResult<Value>)
+}
+
+/**
+ * Whether a persisted snapshot belongs to one scoped user root.
+ *
+ * Only materialized snapshots carry a location, so an unlocated record is
+ * out of scope for a user listing. Comparison is prefix-with-separator so a
+ * sibling directory like `users/alice-2` never matches `users/alice`.
+ * @param snapshot - persisted observation being classified.
+ * @param userRoot - absolute per-user root; `undefined` admits every record.
+ * @returns true when the snapshot is visible in the requested scope.
+ */
+function isWithinUserRoot(snapshot: SessionPersistenceSnapshot, userRoot: string | undefined): boolean {
+  if (userRoot === undefined) return true
+  const location = snapshot.location?.path
+  return location !== undefined && isWithinRoot(location, userRoot)
 }
 
 async function listPersisted(

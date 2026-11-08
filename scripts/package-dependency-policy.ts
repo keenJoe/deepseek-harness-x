@@ -69,6 +69,9 @@ const SAFE_HOST_DEPENDENCY_EXPORTS = {
   '@deepseek-ai/dsh-session': ['SessionId'],
   '@deepseek-ai/dsh-session-format': ['sessionFormatLogFilename'],
   '@deepseek-ai/dsh-storage-domain': ['defineDomain'],
+  // Stateless user-principal helpers mirror the liveshare identityFromKey/identityKeyOf precedent.
+  // REVIEW REQUIRED: human review + a dedicated PR-description heading are mandatory for this exception.
+  '@deepseek-ai/dsh-user-principal': ['userOf', 'userPrincipal', 'userId'],
   '@deepseek-ai/dsh-timeout': ['MAX_TIMER_DELAY_MS'],
   '@deepseek-ai/schemastery': ['default'],
 } as const satisfies HostDependencyExports

@@ -47,5 +47,9 @@ export const PRODUCT_PACKAGE_POLICY: Readonly<Record<string, ProductPackagePolic
   'packages/test-support/session-snapshot': { category: 'test', reason: 'Published Session snapshot replay harness.' },
   'packages/client/web': { category: 'web-distribution', reason: 'Browser boot kernel bundled into the Web distribution.' },
   'packages/client/ui-dockkit': { category: 'web-distribution', reason: 'Layout library bundled into the Web distribution.' },
+  'packages/identity/identity-provider-oidc': { category: 'optional', reason: 'OpenID Connect identity provider adapter that registers one deployment issuer on ctx.identityProviders for hosted multi-user login.' },
+  'packages/identity/identity-provider-feishu': { category: 'optional', reason: 'Feishu Open Platform identity provider adapter that registers one deployment app on ctx.identityProviders for hosted multi-user login.' },
+  'packages/host/route-users': { category: 'optional', reason: 'Identity-aware reverse proxy routing each signed-in browser to its own harness backend for hosted multi-user Web.' },
+  'packages/host/route-users-backend': { category: 'optional', reason: 'Backend half of the trusted-forwarder seam: verifies the entry-signed caller header for per-user backends.' },
   'packages/util/package-manifest': { category: 'declarations', reason: 'Shared package metadata declarations have no runtime mount.' },
 }

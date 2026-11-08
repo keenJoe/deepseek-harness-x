@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "Proveedor de identidad OIDC",
+    "description": "Añade un inicio de sesión OpenID Connect configurado por el despliegue: el navegador se autoriza en el emisor y el arnés verifica el id_token devuelto antes de admitir la sesión.",
+    "detail": "docs/DETAIL.md"
+  }
+}

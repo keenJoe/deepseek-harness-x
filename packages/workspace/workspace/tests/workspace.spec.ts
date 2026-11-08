@@ -18,7 +18,10 @@ import WorkspaceRegistry, {
   type workspaceDomainState,
   WorkspaceMoveInvalidError,
   WorkspaceOrderInvalidError,
+  WorkspaceUnknownSessionError,
 } from '../src/index.ts'
+import type { PeerId, Principal, RemoteInvocation } from '@deepseek-ai/dsh-typert-protocol'
+import { userId, userPrincipal } from '@deepseek-ai/dsh-user-principal'
 import type { WorkspaceDomainState, WorkspaceRecord } from '../src/index.ts'
 import { defaultWorkspaceTitle, fullyQualifiedWorkspacePath } from '../src/paths.ts'
 import * as workspacePaths from '../src/paths.ts'
@@ -86,6 +89,36 @@ async function harness(options: HarnessOptions = {}) {
     setSessions: (headers: SessionHeader[]) => { listed = headers },
   }
 }
+
+/** Build a scoped view of the same registry speaking for one caller principal. */
+function asPrincipal(ctx: Context, principal: Principal) {
+  const invocation: RemoteInvocation = {
+    request: { namespace: 'workspace', method: 'list', args: {} },
+    service: 'workspaceRegistry',
+    peer: {
+      id: 'workspace-scope-peer' as PeerId,
+      ctx,
+      principal,
+      interactions: 'answer',
+      signal: new AbortController().signal,
+      dispose: async () => {},
+    },
+    signal: new AbortController().signal,
+    uplink: <In>(): AsyncIterable<In> => ({
+      [Symbol.asyncIterator]: () => ({ next: async () => ({ done: true, value: undefined }) }),
+    }),
+  }
+  return ctx.extend({ invocation }).workspaceRegistry
+}
+
+const USER = userPrincipal({
+  providerId: 'provider', tenantId: 'tenant', subjectId: 'subject', displayName: 'Alice',
+})!
+const OTHER = userPrincipal({
+  providerId: 'provider', tenantId: 'tenant', subjectId: 'other', displayName: 'Bob',
+})!
+
+const USER_KEY = String(userId(USER))
 
 /** Boot only the storage side, for dependency-pending and startup-failure cases. */
 async function storageContext(pool: MemoryMediaPool, backend: StorageBackend = new MemoryStorageBackend(pool)) {
@@ -1535,6 +1568,140 @@ describe('first-use Workspace preparation', () => {
     expect(storedState(pool).defaultWorkspaceId).toBeUndefined()
     await expect(realpath(join(h.directoryRoot, 'nested', 'Workspace'))).resolves.toBe(join(h.directoryRoot, 'nested', 'Workspace'))
     expect(await h.registry.initializeDefault(h.resolveDirectory)).toBeDefined()
+  })
+})
+
+describe('WorkspaceRegistry per-user partitioning', () => {
+  it('leaves owner scope global and unstamped', async () => {
+    const firstDir = await makeDir('owner-first')
+    const secondDir = await makeDir('owner-second')
+    const { registry } = await harness()
+    const first = await registry.create(firstDir)
+    const second = await registry.create(secondDir)
+    expect(first.owner).toBeUndefined()
+    expect(second.owner).toBeUndefined()
+    expect(registry.list()).toEqual([second, first])
+    expect(registry.get(first.id)).toBe(first)
+    expect(await registry.resolveByPath(firstDir)).toBe(first)
+  })
+
+  it('stamps the caller key on user creates and scopes list, get, and resolveByPath', async () => {
+    const userDir = await makeDir('user-first')
+    const result = await harness()
+    const userRegistry = asPrincipal(result.ctx, USER)
+    const user = await userRegistry.create(userDir, 'Mine')
+    expect(user.owner).toBe(USER_KEY)
+
+    // The owner sees every record; the user sees only its own.
+    expect(result.registry.list()).toEqual([user])
+    expect(result.registry.get(user.id)).toBe(user)
+    expect(await result.registry.resolveByPath(userDir)).toBe(user)
+
+    expect(userRegistry.list()).toEqual([user])
+    expect(userRegistry.get(user.id)).toBe(user)
+    expect(await userRegistry.resolveByPath(userDir)).toBe(user)
+
+    // The other user sees none of it.
+    const otherRegistry = asPrincipal(result.ctx, OTHER)
+    expect(otherRegistry.list()).toEqual([])
+    expect(otherRegistry.get(user.id)).toBeUndefined()
+    expect(await otherRegistry.resolveByPath(userDir)).toBeUndefined()
+  })
+
+  it('confines mutations to the caller principal without leaking identity', async () => {
+    const userDir = await makeDir('mut-user')
+    const otherDir = await makeDir('mut-other')
+    const result = await harness()
+    const userRegistry = asPrincipal(result.ctx, USER)
+    const otherRegistry = asPrincipal(result.ctx, OTHER)
+    const user = await userRegistry.create(userDir)
+    const other = await otherRegistry.create(otherDir)
+
+    // Cross-user delete is a not-found no-op: no write, no published record.
+    await expect(userRegistry.delete(other.id)).resolves.toBe(false)
+    expect(result.registry.get(other.id)).toBe(other)
+
+    // Cross-user reorder refuses with the order-invalid not-found semantics.
+    await expect(userRegistry.insertBefore(other.id)).rejects.toBeInstanceOf(WorkspaceOrderInvalidError)
+    await expect(userRegistry.insertBefore(user.id, other.id)).rejects.toBeInstanceOf(WorkspaceOrderInvalidError)
+
+    // A user reorder result projects only that user's ids.
+    await expect(userRegistry.insertBefore(user.id)).resolves.toEqual([user.id])
+    expect(storedState(result.pool).workspaceIds).toEqual([other.id, user.id])
+  })
+
+  it('refuses to register a path another user already owns', async () => {
+    const sharedDir = await makeDir('cross-user-path')
+    const result = await harness()
+    await asPrincipal(result.ctx, USER).create(sharedDir)
+    await expect(asPrincipal(result.ctx, OTHER).create(sharedDir)).rejects.toThrow(/another user/)
+  })
+
+  it('scopes archive, unarchive, pin, and unpin by the accounting workspace owner', async () => {
+    const userDir = await makeDir('session-user')
+    const otherDir = await makeDir('session-other')
+    const result = await harness()
+    result.setSessions([header('u1', userDir, 1), header('o1', otherDir, 2)])
+    const userRegistry = asPrincipal(result.ctx, USER)
+    const otherRegistry = asPrincipal(result.ctx, OTHER)
+
+    const userWorkspace = await userRegistry.create(userDir)
+    const otherWorkspace = await otherRegistry.create(otherDir)
+    await userWorkspace.attachSession(SessionId('u1'))
+    await otherWorkspace.attachSession(SessionId('o1'))
+
+    // A user cannot archive or pin another user's accounted session.
+    await expect(userRegistry.archiveSession(SessionId('o1'))).rejects.toBeInstanceOf(WorkspaceUnknownSessionError)
+    await expect(userRegistry.pinSession(SessionId('o1'))).rejects.toBeInstanceOf(WorkspaceUnknownSessionError)
+    expect(result.registry.archivedSessionIds).toEqual([])
+    expect(result.registry.pinnedSessionIds).toEqual([])
+
+    // Each user acts only on its own session; cross-user getters stay scoped.
+    await userRegistry.pinSession(SessionId('u1'))
+    await userRegistry.archiveSession(SessionId('u1'))
+    expect(result.registry.archivedSessionIds).toEqual(['u1'])
+    expect(result.registry.pinnedSessionIds).toEqual([])
+    expect(userRegistry.archivedSessionIds).toEqual(['u1'])
+    expect(otherRegistry.archivedSessionIds).toEqual([])
+
+    // Unarchiving another user's session is a scoped no-op, never a cross-user write.
+    await otherRegistry.unarchiveSession(SessionId('u1'))
+    expect(result.registry.archivedSessionIds).toEqual(['u1'])
+
+    // The owner still sees and can act globally.
+    await result.registry.unarchiveSession(SessionId('u1'))
+    expect(result.registry.archivedSessionIds).toEqual([])
+  })
+})
+
+describe('WorkspaceRegistry ownership index', () => {
+  it('indexes owned Workspaces and accounted Sessions by user key', async () => {
+    const userDir = await makeDir('indexed-user')
+    const otherDir = await makeDir('indexed-other')
+    const result = await harness()
+    result.setSessions([header('u1', userDir, 2), header('u2', userDir, 1), header('o1', otherDir, 3)])
+    const userWorkspace = await asPrincipal(result.ctx, USER).create(userDir)
+    const otherWorkspace = await asPrincipal(result.ctx, OTHER).create(otherDir)
+    await userWorkspace.attachSession(SessionId('u1'))
+    await userWorkspace.attachSession(SessionId('u2'))
+    await otherWorkspace.attachSession(SessionId('o1'))
+
+    // Each index answers for the named key, never for the context it is read from.
+    expect(result.registry.workspacesOwnedBy(USER_KEY)).toEqual([userWorkspace.id])
+    expect(result.registry.sessionsOwnedBy(USER_KEY)).toEqual([SessionId('u2'), SessionId('u1')])
+    expect(result.registry.workspacesOwnedBy(String(userId(OTHER)))).toEqual([otherWorkspace.id])
+    expect(result.registry.sessionsOwnedBy(String(userId(OTHER)))).toEqual([SessionId('o1')])
+  })
+
+  it('returns an empty index for a key that owns nothing', async () => {
+    const userDir = await makeDir('unindexed-user')
+    const result = await harness()
+    result.setSessions([header('u1', userDir, 1)])
+    const userWorkspace = await asPrincipal(result.ctx, USER).create(userDir)
+    await userWorkspace.attachSession(SessionId('u1'))
+
+    expect(result.registry.workspacesOwnedBy(String(userId(OTHER)))).toEqual([])
+    expect(result.registry.sessionsOwnedBy(String(userId(OTHER)))).toEqual([])
   })
 })
 

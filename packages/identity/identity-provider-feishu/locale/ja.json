@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Feishu ID プロバイダー",
+    "description": "デプロイ構成による Feishu Open Platform サインインを追加します。"
+  }
+}

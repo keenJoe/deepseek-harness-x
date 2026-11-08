@@ -34,4 +34,21 @@ dsh --profile web --public-url https://app.example/ui/ --trusted-host app.exampl
 
 打印的 URL 携带进程凭据，只应与预期用户分享。
 
+## 服务多个用户
+
+一个 `dsh` 进程拥有一个 harness home，也只有一个调用方身份：它放行的浏览器就是这个 home 的操作者。因此隔离来自文件系统本身，而不是某个开关 —— 为每个人**各运行一个进程**，各自拥有 `DSH_HOME` 与端口。`dsh serve-users` 用一条命令完成这些：
+
+```sh
+dsh serve-users --profile web --users alice,bob \
+  --patch apps/cli/config/examples/multi-user-oidc.yml
+```
+
+它创建 `$DSH_HOME/users/alice` 与 `$DSH_HOME/users/bob`，为每个键从 `--port`（默认 3080）开始按连续端口启动一个 Web 实例，打印每个实例的 URL，并在任一子进程退出或启动器收到 SIGINT/SIGTERM 时停掉所有子进程。自行管理 home 的部署可传 `--users-root`，并直接设置 `DSH_HOME` 启动每个实例。
+
+每个持久化根目录都从 `DSH_HOME` 派生，因此每个实例把自己的 `sessions`、`storages`、`attachments`、凭据与设置写在自己的目录下；进程内部不需要再做分区，一个人运行的工具也读不到另一个人的 home。在它们前面放一个反向代理，把每个人路由到自己的实例 —— 每人为一个子域名是最简单的映射，这样 cookie、路径与升级行为都与本指南面向单个部署的描述完全一致。
+
+[多用户 OIDC 覆盖层](../../../apps/cli/config/examples/multi-user-oidc.yml)让每个实例都要求登录，于是由身份提供方决定谁可以使用该实例，而不只依赖代理。在代理处完成鉴权的部署可以不使用该覆盖层，并让所有监听端口仅绑定 loopback；无论哪种方式，都不要让两个人共用一个 `DSH_HOME`。
+
+为每个人使用稳定的目录名，例如身份提供方的 subject 或该人的共享目录名，使回访用户映射回同一个 home。把每个 home 作为一个整体备份与迁移，绝不把两个 home 合并：对每个被放行的浏览器，harness 都用同一批路径写入归属于调用方的状态。
+
 [Web 应用参考](../../../packages/bundle/web-app/README.zh.md#public-deployments)说明 `--public-url`、`--trusted-host` 与 `--tls-cert`/`--tls-key` 命令行选项。在 Web profile 中，`publicUrl` 配置在 `web-runtime` 行，`trustedHosts` 配置在 [Connection 行](../../../packages/client/connection/README.zh.md)，`tls` 配置在 [webserver 行](../../../docs/subsystems/web-server.zh.md#config)。

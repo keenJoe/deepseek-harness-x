@@ -9,25 +9,22 @@
   ],
   "references": [
     {
-      "path": "../../../vendor/cosmokit"
-    },
-    {
       "path": "../../../vendor/cordis"
     },
     {
-      "path": "../../util/brand"
-    },
-    {
-      "path": "../../llm/llm"
+      "path": "../../../vendor/cosmokit"
     },
     {
       "path": "../../core/session"
     },
     {
-      "path": "../../session/session-title"
+      "path": "../../identity/user-principal"
     },
     {
-      "path": "../../todo/tool-todo"
+      "path": "../../llm/llm"
+    },
+    {
+      "path": "../../session/session-format-catalog"
     },
     {
       "path": "../../session/session-persistence"
@@ -39,7 +36,19 @@
       "path": "../../session/session-projection-cache"
     },
     {
-      "path": "../../session/session-format-catalog"
+      "path": "../../session/session-title"
+    },
+    {
+      "path": "../../todo/tool-todo"
+    },
+    {
+      "path": "../../typert/protocol"
+    },
+    {
+      "path": "../../util/brand"
+    },
+    {
+      "path": "../../util/home-paths"
     }
   ]
 }

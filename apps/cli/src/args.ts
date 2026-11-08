@@ -57,8 +57,52 @@ interface PluginInvocation {
   args: string[]
 }
 
+/** Run one instance per person, each with its own harness home. */
+interface ServeUsersInvocation {
+  mode: 'serve-users'
+  profile: string
+  /** One key per person, in launch order. */
+  users: string[]
+  /** Directory holding one home per key; omitted follows the default users directory. */
+  usersRoot?: string | undefined
+  /** Port the first instance takes; later instances add one each. */
+  port?: number | undefined
+  /** Extra patch-list overlays applied by every instance, in argv order. */
+  patches: string[]
+  /** Everything after the launcher flags, forwarded to every instance. */
+  args: string[]
+}
+
+/** Assemble hosted multi-user Web: one identity-routing entry plus one harness instance per person. */
+interface RouteUsersInvocation {
+  mode: 'route-users'
+  profile: string
+  /** One key per person, in launch order. */
+  users: string[]
+  /** Directory holding one home per key and the entry home. */
+  usersRoot?: string | undefined
+  /** Feishu tenant key for canonical route keys. */
+  tenant?: string | undefined
+  /** Port the entry takes; backends take the following ports. */
+  entryPort?: number | undefined
+  /** Extra patch overlays applied only to the entry. */
+  entryPatches: string[]
+  /** Extra patch overlays applied to every backend. */
+  userPatches: string[]
+  /** Shared forwarding secret exported to every child. */
+  forwardSecret?: string | undefined
+  /** Everything after the launcher flags, forwarded to every process. */
+  args: string[]
+}
+
 /** The resolved `dsh` invocation. Help, version, and errors exit inside {@link parseDshArgs}. */
-export type DshInvocation = ProfileInvocation | DumpConfigInvocation | DumpConfigSchemaInvocation | PluginInvocation
+export type DshInvocation =
+  | ProfileInvocation
+  | DumpConfigInvocation
+  | DumpConfigSchemaInvocation
+  | PluginInvocation
+  | ServeUsersInvocation
+  | RouteUsersInvocation
 
 /** Launcher flags for profile boot and configuration dumps. */
 interface BootOptions {
@@ -74,6 +118,9 @@ interface BootOptions {
  * variadic — a variadic `--patch` would swallow the inner arguments.
  */
 const collect = (value: string, previous: string[] = []): string[] => [...previous, value]
+
+/** Repeatable `--users alice,bob` collector: each occurrence appends its comma-separated keys. */
+const collectUsers = (value: string, previous: string[] = []): string[] => [...previous, ...value.split(',')]
 
 function selectProfile(value: string, previous?: string): string {
   if (previous !== undefined) throw new InvalidArgumentError('select a profile only once')
@@ -97,6 +144,10 @@ Examples:
   dsh tui --resume <session>                arguments after the launcher flags reach the app
   dsh web --help                            the web app's own flags and help
   dsh plugin --profile tui add <package>    install a plugin into the tui profile
+  dsh serve-users --profile web --users alice,bob
+                                            run one instance per person, each with its own home
+  dsh route-users --profile web --users alice,bob
+                                            run one entry plus one instance per person behind one URL
 `
 
 /**
@@ -184,6 +235,81 @@ export function parseDshArgs(argv: readonly string[], version: string, manageDes
       resolved = resolveBoot(program, profile, options, args)
     })
 
+  if (first === 'serve-users') {
+    const serve = program.command('serve-users')
+      .description('run one instance per person, each with its own harness home and port')
+      .helpOption('-h, --help', 'show this help')
+      .requiredOption('--profile <name>', 'the profile every instance boots', selectProfile)
+      .option('--users <keys>', 'comma-separated user keys; repeatable', collectUsers, [])
+      .option('--users-root <path>', 'directory holding one home per user key')
+      .option('--port <number>', 'port the first instance takes', (value: string) => Number(value))
+      .option('--patch <path>', 'extra patch-list overlay applied to every instance (repeatable)', collect)
+      .allowUnknownOption()
+      .argument('[args...]', 'arguments for each booted app')
+      .action((args: string[], options: { profile: string; users: string[]; usersRoot?: string; port?: number; patch?: string[] }) => {
+        const users = options.users.flatMap(value => value.split(',')).map(value => value.trim()).filter(value => value.length > 0)
+        if (users.length === 0) serve.error('error: serve-users needs at least one --users value')
+        if (options.port !== undefined && (!Number.isSafeInteger(options.port) || options.port < 1 || options.port > 65_535)) {
+          serve.error('error: --port needs a port number from 1 through 65535')
+        }
+        resolved = {
+          mode: 'serve-users',
+          profile: options.profile,
+          users,
+          usersRoot: options.usersRoot,
+          port: options.port,
+          patches: options.patch ?? [],
+          args,
+        }
+      })
+  }
+
+  if (first === 'route-users') {
+    const route = program.command('route-users')
+      .description('run one identity-routing entry plus one instance per person')
+      .helpOption('-h, --help', 'show this help')
+      .requiredOption('--profile <name>', 'the profile every process boots', selectProfile)
+      .option('--users <keys>', 'comma-separated user keys; repeatable', collectUsers, [])
+      .option('--users-root <path>', 'directory holding one home per user key and the entry home')
+      .option('--entry-port <number>', 'port the entry takes; backends take the following ports', (value: string) => Number(value))
+      .option('--entry-patch <path>', 'overlay applied only to the entry (repeatable)', collect)
+      .option('--user-patch <path>', 'overlay applied to every backend (repeatable)', collect)
+      .option('--forward-secret <secret>', 'shared forwarding secret exported to every child')
+      .option('--tenant <key>', 'Feishu tenant key for canonical route keys')
+      .allowUnknownOption()
+      .argument('[args...]', 'arguments for each booted app')
+      .action((args: string[], options: {
+        profile: string
+        users: string[]
+        usersRoot?: string
+        entryPort?: number
+        entryPatch?: string[]
+        userPatch?: string[]
+        forwardSecret?: string
+        tenant?: string
+      }) => {
+        const users = options.users.flatMap(value => value.split(',')).map(value => value.trim()).filter(value => value.length > 0)
+        if (users.length === 0) route.error('error: route-users needs at least one --users value')
+        const entryPortValid = options.entryPort !== undefined
+          && (!Number.isSafeInteger(options.entryPort) || options.entryPort < 1 || options.entryPort > 65_535)
+        if (entryPortValid) {
+          route.error('error: --entry-port needs a port number from 1 through 65535')
+        }
+        resolved = {
+          mode: 'route-users',
+          profile: options.profile,
+          users,
+          usersRoot: options.usersRoot,
+          entryPort: options.entryPort,
+          entryPatches: options.entryPatch ?? [],
+          userPatches: options.userPatch ?? [],
+          forwardSecret: options.forwardSecret,
+          tenant: options.tenant,
+          args,
+        }
+      })
+  }
+
   if (first === 'plugin') {
     const plugin = program.command('plugin').description('manage a profile\'s plugins by forwarding the remaining arguments to pnpm in the profile directory')
     plugin
@@ -203,7 +329,7 @@ export function parseDshArgs(argv: readonly string[], version: string, manageDes
   }
 
   try {
-    const expanded = first !== undefined && !first.startsWith('-') && first !== 'plugin'
+    const expanded = first !== undefined && !first.startsWith('-') && first !== 'plugin' && first !== 'serve-users' && first !== 'route-users'
       ? ['--profile', ...argv]
       : argv
     program.parse(expanded, { from: 'user' })

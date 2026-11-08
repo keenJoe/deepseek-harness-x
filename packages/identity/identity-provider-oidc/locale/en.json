@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "OIDC identity provider",
+    "description": "Adds a deployment-configured OpenID Connect sign-in: the browser authorizes at the issuer, and the harness verifies the returned id_token before admitting the session.",
+    "detail": "docs/DETAIL.md"
+  }
+}

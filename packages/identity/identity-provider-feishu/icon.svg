@@ -1,0 +1,11 @@
+<svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect x="5" y="5" width="26" height="26" rx="6" fill="url(#feishu-card)" />
+  <path d="M10 18.5c4.5-5.5 11-5.5 16 0" stroke="#FFFFFF" stroke-width="2.6" stroke-linecap="round" />
+  <path d="M13 23.5c3-3 7-3 10 0" stroke="#FFFFFF" stroke-width="2.6" stroke-linecap="round" />
+  <defs>
+    <linearGradient id="feishu-card" x1="18" y1="5" x2="18" y2="31" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#3B7CFF" />
+      <stop offset="1" stop-color="#1E4FD6" />
+    </linearGradient>
+  </defs>
+</svg>

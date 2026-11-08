@@ -1,0 +1,40 @@
+# Bilingual-pair consistency record for 2026-11-05-hosted-multi-user-oidc-tenant-isolation.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-11-05-hosted-multi-user-oidc-tenant-isolation.md
+/agent-note-hosted-multi-user-web-with-a-pluggable-oidc-login-and-per-user-data-isolation:
+  en: 57a3680b354da18e
+  zh: bcb22c15511d6f8e
+/agent-note-hosted-multi-user-web-with-a-pluggable-oidc-login-and-per-user-data-isolation/problem:
+  en: 5f74b645133bec81
+  zh: 9de72b1dc4074f8c
+/agent-note-hosted-multi-user-web-with-a-pluggable-oidc-login-and-per-user-data-isolation/decision:
+  en: e141414d7e5c2dde
+  zh: f4c55cc5fc1e9639
+/agent-note-hosted-multi-user-web-with-a-pluggable-oidc-login-and-per-user-data-isolation/decision/identity-and-admission:
+  en: 84957503cf4cf293
+  zh: a9fc1d6d1dbf7d6a
+/agent-note-hosted-multi-user-web-with-a-pluggable-oidc-login-and-per-user-data-isolation/decision/the-oidc-adapter:
+  en: 15cc52ae208107ec
+  zh: 11c330d5c5e49fbd
+/agent-note-hosted-multi-user-web-with-a-pluggable-oidc-login-and-per-user-data-isolation/decision/per-user-scoping:
+  en: b71158c6e827f054
+  zh: 143ef227369620e7
+/agent-note-hosted-multi-user-web-with-a-pluggable-oidc-login-and-per-user-data-isolation/decision/authorization:
+  en: 279bc82261ea87f2
+  zh: 124c5b3722d5261b
+/agent-note-hosted-multi-user-web-with-a-pluggable-oidc-login-and-per-user-data-isolation/decision/security-invariants:
+  en: 23bb1a64628a1ec1
+  zh: a4c9b32e9842a109
+/agent-note-hosted-multi-user-web-with-a-pluggable-oidc-login-and-per-user-data-isolation/decision/what-this-release-does-not-do:
+  en: 07691473bb9945ff
+  zh: 7f947b63c17bee20
+/agent-note-hosted-multi-user-web-with-a-pluggable-oidc-login-and-per-user-data-isolation/consequences:
+  en: 0900b345cea41f91
+  zh: 50fb1e97c5264036
+/agent-note-hosted-multi-user-web-with-a-pluggable-oidc-login-and-per-user-data-isolation/alternatives-considered:
+  en: 920c3f55825261f2
+  zh: b305db6f94d38027
+/agent-note-hosted-multi-user-web-with-a-pluggable-oidc-login-and-per-user-data-isolation/relation-to-existing-notes:
+  en: 67d1325872059fb8
+  zh: 21c379e9c1e97b14

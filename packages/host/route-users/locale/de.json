@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Mehrbenutzer-Router",
+    "description": "Leitet jeden angemeldeten Browser von einer Einstiegs-URL zu seinem eigenen Backend."
+  }
+}

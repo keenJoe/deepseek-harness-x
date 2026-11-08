@@ -87,7 +87,7 @@ async function readerHarness(creator: ShareRpcActor, target: 'fork' | 'source' =
   const driver = await mountAgentLoopTestHarness(ctx)
   provideBrowserCredentials(ctx)
   const auth = await BrowserAuth.create(ctx, ctx.credentials, 1)
-  new HostConnectionService(ctx, [], auth)
+  new HostConnectionService(ctx, [], auth, {} as never)
   // Provided on the root Context that also constructs the Session controller below, which re-reads
   // access from that Context's own fiber while a Gateway call runs.
   new RemoteAccessService(ctx)

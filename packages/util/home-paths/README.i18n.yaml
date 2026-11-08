@@ -9,8 +9,8 @@
   en: 6a18bcb84ce35987
   zh: f26144b659925421
 /deepseek-ai-dsh-home-paths/summary:
-  en: 52245b057c8de494
-  zh: cd18fb40ad09aecc
+  en: f5984a391cdfeef6
+  zh: a2ddbec5692ee87d
 /deepseek-ai-dsh-home-paths/table-of-contents:
   en: 80b31a934611cb4a
   zh: 05f3f7f9cb2fd881
@@ -23,6 +23,9 @@
 /deepseek-ai-dsh-home-paths/use-this-package/resolving-the-shared-agents-root:
   en: 899c53a36b4a77cd
   zh: 216532c8876d201d
+/deepseek-ai-dsh-home-paths/use-this-package/partitioning-per-user-data:
+  en: acb072c3cb0202dd
+  zh: af1a0f137a2f91df
 /deepseek-ai-dsh-home-paths/use-this-package/displaying-a-home:
   en: 5296a54cce9be374
   zh: e408ce14b8be4698
@@ -36,11 +39,11 @@
   en: 3f97bd4606e12d4a
   zh: 8f09f108141a478e
 /deepseek-ai-dsh-home-paths/understand-the-implementation/source-map:
-  en: 584610e67c4aa386
-  zh: 766f77e35c65193d
+  en: 2c20d0622fe620ac
+  zh: f8b41bac6b04422a
 /deepseek-ai-dsh-home-paths/understand-the-implementation/resolution-rules:
-  en: 0315e0bd66f98ac6
-  zh: ba3a26a19e0bda5c
+  en: 8459bdfe0b833735
+  zh: 5ee13f1fca4450d5
 /deepseek-ai-dsh-home-paths/understand-the-implementation/canonicalization-mechanics:
   en: a79aecd162317dc2
   zh: 342f9bae0231c3de
@@ -48,8 +51,8 @@
   en: 20c1a7aad2c891e7
   zh: 66977a9714e6eff8
 /deepseek-ai-dsh-home-paths/known-limitations-and-deferred-work:
-  en: aa4aecf31a596da0
-  zh: 22dea997610fae2d
+  en: ab67902a01939782
+  zh: 0b651e1cbe1dec17
 /deepseek-ai-dsh-home-paths/known-limitations-and-deferred-work/dev-note:
   en: e67f633dc6fe7773
   zh: 3bb0c20c93f16f98

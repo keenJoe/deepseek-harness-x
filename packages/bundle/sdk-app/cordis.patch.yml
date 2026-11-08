@@ -45,6 +45,12 @@
 
 # Share native desktop tools and model context without starting a Web server.
 - insert:
+    # The identity-provider registry: hosted browser login resolves the adapters a
+    # deployment registered here. A composition with no adapter keeps the
+    # single-user loopback flow.
+    - id: identity-providers
+      name: '@deepseek-ai/dsh-identity-providers'
+
     - id: connection
       name: '@deepseek-ai/dsh-client-connection'
 

@@ -99,6 +99,16 @@ export class WorkspaceEntity implements Workspace {
     return this.record.updatedAt
   }
 
+  /**
+   * Canonical partition key of the logged-in user that owns this workspace,
+   * stamped at create. Absent for legacy/global records written before
+   * per-user partitioning and for the owner principal, which sees and mutates
+   * every record.
+   */
+  get owner(): string | undefined {
+    return this.record.owner
+  }
+
   get sessionIds(): readonly SessionId[] {
     return this.record.sessionIds.filter(id => this.host.candidateMatches(id, this.record.path))
   }

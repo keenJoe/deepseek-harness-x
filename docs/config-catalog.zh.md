@@ -478,8 +478,8 @@ export type Config = LocalConfig
 
 ## `@deepseek-ai/dsh-client-connection`
 
-- `inject`: `credentials`
-- `source`: [`packages/client/connection/src/index.ts:96`](../packages/client/connection/src/index.ts)
+- `inject`: `credentials` · `storageDomain`
+- `source`: [`packages/client/connection/src/index.ts:103`](../packages/client/connection/src/index.ts)
 
 ```ts config-catalog
 /** Browser authentication, request limits, and connection recovery configuration. */
@@ -1881,6 +1881,79 @@ export interface TlsConfig {
 }
 ```
 <!-- END GENERATED config-catalog:@deepseek-ai/dsh-host-webserver -->
+
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-identity-provider-feishu -->
+<a id="deepseek-aidsh-identity-provider-feishu"></a>
+
+## `@deepseek-ai/dsh-identity-provider-feishu`
+
+- `inject`: `identityProviders`
+- `refs`: `Volatile` (`@deepseek-ai/cordis`)
+- `source`: [`packages/identity/identity-provider-feishu/src/index.ts:44`](../packages/identity/identity-provider-feishu/src/index.ts)
+
+```ts config-catalog
+/** Deployment choices for one Feishu Open Platform provider. */
+export interface Config {
+  /** Registry id, also the `providerId` every resolved identity carries. */
+  readonly id: string
+  /** Feishu Open Platform app id (`app_id`). */
+  readonly appId: string
+  /** Feishu app secret, read per exchange so a rotation applies without a reload. */
+  readonly appSecret: Volatile<string | undefined>
+  /** Scopes the login requests; the app must be granted these. */
+  readonly scopes: readonly string[]
+  /** Feishu or Lark API base; a Lark deployment supplies its own host. */
+  readonly baseUrl: string
+  /** Deadline for each token and user-info request, in milliseconds. */
+  readonly requestTimeoutMs: number
+  /** Tenant id used when the user-info response carries no tenant key. */
+  readonly defaultTenant?: string | undefined
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-identity-provider-feishu -->
+
+<!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-identity-provider-oidc -->
+<a id="deepseek-aidsh-identity-provider-oidc"></a>
+
+## `@deepseek-ai/dsh-identity-provider-oidc`
+
+- `inject`: `identityProviders`
+- `refs`: `Volatile` (`@deepseek-ai/cordis`)
+- `source`: [`packages/identity/identity-provider-oidc/src/index.ts:48`](../packages/identity/identity-provider-oidc/src/index.ts)
+
+```ts config-catalog
+/**
+ * Deployment choices for one OpenID Connect provider.
+ */
+export interface Config {
+  /** Registry id, also the `providerId` every resolved identity carries. */
+  readonly id: string
+  /** Expected `iss` claim and the base of the discovery document. */
+  readonly issuer: string
+  /** OAuth client id. */
+  readonly clientId: string
+  /**
+   * OAuth client secret. When set, the token request authenticates with HTTP Basic, read per
+   * exchange so a rotated value applies without a reload.
+   */
+  readonly clientSecret: Volatile<string | undefined>
+  /** Scopes the login requests. */
+  readonly scopes: readonly string[]
+  /** Authorization endpoint; configured together with {@link Config.tokenEndpoint} and {@link Config.jwksUri}. */
+  readonly authorizationEndpoint?: string | undefined
+  /** Token endpoint; configured together with the other two static endpoints. */
+  readonly tokenEndpoint?: string | undefined
+  /** JWKS URI; configured together with the other two static endpoints. */
+  readonly jwksUri?: string | undefined
+  /** Deadline for each issuer, JWKS, and token request, in milliseconds. */
+  readonly requestTimeoutMs: number
+  /** Tenant id used when the token carries no configured tenant claim. */
+  readonly defaultTenant?: string | undefined
+  /** id_token claim naming the tenant. */
+  readonly tenantClaim?: string | undefined
+}
+```
+<!-- END GENERATED config-catalog:@deepseek-ai/dsh-identity-provider-oidc -->
 
 <!-- BEGIN GENERATED config-catalog:@deepseek-ai/dsh-jobs-local -->
 <a id="deepseek-aidsh-jobs-local"></a>
@@ -4982,6 +5055,7 @@ export interface Config {
 | `@deepseek-ai/dsh-host-directory-picker-auto` | `webServer` · `connection` · `loader` | [`packages/host/directory-picker-auto/src/index.ts`](../packages/host/directory-picker-auto/src/index.ts) |
 | `@deepseek-ai/dsh-host-directory-picker-native` | — | [`packages/host/directory-picker-native/src/index.ts`](../packages/host/directory-picker-native/src/index.ts) |
 | `@deepseek-ai/dsh-host-plugin-inventory` | `loader` | [`packages/host/plugin-inventory/src/index.ts`](../packages/host/plugin-inventory/src/index.ts) |
+| `@deepseek-ai/dsh-identity-providers` | — | [`packages/identity/identity-providers/src/index.ts`](../packages/identity/identity-providers/src/index.ts) |
 | `@deepseek-ai/dsh-llm` | — | [`packages/llm/llm/src/index.ts`](../packages/llm/llm/src/index.ts) |
 | `@deepseek-ai/dsh-lsp` | — | [`packages/lsp/lsp/src/index.ts`](../packages/lsp/lsp/src/index.ts) |
 | `@deepseek-ai/dsh-mcp-resources` | `tools` | [`packages/mcp/mcp-resources/src/index.ts`](../packages/mcp/mcp-resources/src/index.ts) |
@@ -5078,6 +5152,7 @@ export interface Config {
 | `@deepseek-ai/dsh-home-paths` | — | [`packages/util/home-paths/src/index.ts`](../packages/util/home-paths/src/index.ts) |
 | `@deepseek-ai/dsh-hook-protocol` | — | [`packages/experimental/hook-protocol/src/index.ts`](../packages/experimental/hook-protocol/src/index.ts) |
 | `@deepseek-ai/dsh-http-proxy` | — | [`packages/util/http-proxy/src/index.ts`](../packages/util/http-proxy/src/index.ts) |
+| `@deepseek-ai/dsh-identity-protocol` | — | [`packages/identity/identity-protocol/src/index.ts`](../packages/identity/identity-protocol/src/index.ts) |
 | `@deepseek-ai/dsh-launch-environment` | — | [`packages/util/launch-environment/src/index.ts`](../packages/util/launch-environment/src/index.ts) |
 | `@deepseek-ai/dsh-lazy-require` | — | [`packages/util/lazy-require/src/index.ts`](../packages/util/lazy-require/src/index.ts) |
 | `@deepseek-ai/dsh-llm-deepseek` | — | [`packages/llm/llm-deepseek/src/index.ts`](../packages/llm/llm-deepseek/src/index.ts) |
@@ -5111,6 +5186,7 @@ export interface Config {
 | `@deepseek-ai/dsh-typert-generator` | — | [`packages/typert/generator/src/index.ts`](../packages/typert/generator/src/index.ts) |
 | `@deepseek-ai/dsh-typert-protocol` | — | [`packages/typert/protocol/src/index.ts`](../packages/typert/protocol/src/index.ts) |
 | `@deepseek-ai/dsh-typert-registry` | — | [`packages/typert/registry/src/index.ts`](../packages/typert/registry/src/index.ts) |
+| `@deepseek-ai/dsh-user-principal` | — | [`packages/identity/user-principal/src/index.ts`](../packages/identity/user-principal/src/index.ts) |
 | `@deepseek-ai/dsh-util-code-language` | — | [`packages/util/code-language/src/index.ts`](../packages/util/code-language/src/index.ts) |
 | `@deepseek-ai/dsh-util-crypto` | — | [`packages/util/crypto/src/index.ts`](../packages/util/crypto/src/index.ts) |
 | `@deepseek-ai/dsh-util-file-drag` | — | [`packages/util/file-drag/src/index.ts`](../packages/util/file-drag/src/index.ts) |

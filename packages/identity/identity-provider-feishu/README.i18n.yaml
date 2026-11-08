@@ -1,0 +1,31 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/identity/identity-provider-feishu/README.md
+/:
+  en: 3dbf3a8caa961ec5
+  zh: 0398e881be6ca4b2
+/deepseek-ai-dsh-identity-provider-feishu:
+  en: 446a72913cce4935
+  zh: c36aab7f79799a19
+/deepseek-ai-dsh-identity-provider-feishu/summary:
+  en: 937e996320a12254
+  zh: 36e52cf3735e2110
+/deepseek-ai-dsh-identity-provider-feishu/table-of-contents:
+  en: f3088479be949778
+  zh: 2835e20ff7119cc6
+/deepseek-ai-dsh-identity-provider-feishu/use-this-package:
+  en: b224a5de250c5af1
+  zh: 4b456d8c23fb9824
+/deepseek-ai-dsh-identity-provider-feishu/config:
+  en: d22c9b4989d0e25d
+  zh: 4c70523e7d5c87cc
+/deepseek-ai-dsh-identity-provider-feishu/known-limitations-and-deferred-work:
+  en: 8d8f2e3a05861ef5
+  zh: 339d56a5432d271e
+/deepseek-ai-dsh-identity-provider-feishu/model-experience:
+  en: 1e07e606fe243541
+  zh: e1838f83fef15aca
+/deepseek-ai-dsh-identity-provider-feishu/dev-note:
+  en: 5de1d6304e00c58f
+  zh: 6d2630973a3dd550

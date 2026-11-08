@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`@deepseek-ai/dsh-home-paths` lets package authors resolve the DeepSeek Harness data root and the shared agent configuration root their consumers read. An explicit path wins over the environment variable, which wins over the default under the operating-system home; blank environment values are ignored. Its public helpers can render a root without revealing an absolute machine path, expand only bare or current-user tilde forms, and canonicalize watch targets whose final components do not yet exist. Use it as a direct library dependency, not through `cordis.yml`.
+`@deepseek-ai/dsh-home-paths` lets package authors resolve the DeepSeek Harness data root and the shared agent configuration root their consumers read. An explicit path wins over the environment variable, which wins over the default under the operating-system home; blank environment values are ignored. Its public helpers can resolve one logged-in user's per-user root under `users/<userKey>`, migrate a legacy owner home into it, render a root without revealing an absolute machine path, expand only bare or current-user tilde forms, and canonicalize watch targets whose final components do not yet exist. Use it as a direct library dependency, not through `cordis.yml`.
 
 ## Table of Contents
 
@@ -51,6 +51,12 @@ agentsHomeDisplay(agents)            // ~/.agents, or $DSH_AGENTS_HOME for any c
 
 `resolveAgentsHome` applies the same precedence, blank-value handling, and tilde expansion as `resolveDshHome`. The root is deliberately outside `$DSH_HOME` because other agent tools share it; `dsh-agent-instructions` reads its user-global `AGENTS.md`, and `dsh-skill-filesystem` scans its `skills/` directory.
 
+### Partitioning per-user data
+
+`userHomePath(userKey, ...segments)` joins a canonical percent-encoded user key onto the resolved home as `<home>/users/<userKey>`, so a logged-in user's durable roots sit under one traversal-safe directory. The key is produced by the identity packages (`identityKeyOf`), never from caller-controlled path input; callers that derive a key from a principal must reject an empty provider or subject first. This is a pure path join: it validates nothing and creates nothing.
+
+`migrateLegacyRootToUser(legacyRoot, targetUserRoot)` moves every direct child of a legacy owner/global home into a per-user root, leaving the legacy directory empty but in place. It is an opt-in, one-time operation: it renames each child, refuses before changing anything when any destination child already exists or the source directory is missing, and creates the destination only after every collision check passed. Call it explicitly during a partition migration — never on every startup.
+
 ### Displaying a home
 
 For user-facing paths, render a root symbolically rather than as a machine path: the default harness home displays as `~/.dsh`, any configured harness home as `$DSH_HOME`, the default shared agents root as `~/.agents`, and any configured shared agents root as `$DSH_AGENTS_HOME`. Neither display form leaks an absolute machine path.
@@ -77,11 +83,11 @@ The package is built on one principle: harness user data lives under one root, a
 
 | File | Role |
 |---|---|
-| [`src/index.ts`](src/index.ts) | Home resolution, path joining, display, tilde expansion, and watch-path canonicalization |
+| [`src/index.ts`](src/index.ts) | Home resolution, per-user path joining, legacy migration, display, tilde expansion, and watch-path canonicalization |
 
 ### Resolution rules
 
-`resolveDshHome` reads the explicit override, then `$DSH_HOME`, then falls back to the operating-system home joined with `.dsh`. `resolveAgentsHome` reads the same three levels for `$DSH_AGENTS_HOME` and `~/.agents`. The chosen value is tilde-expanded and normalized to an absolute path; `dshHomePath` joins child segments with Node's platform path rules. `dshHomeDisplay` and `agentsHomeDisplay` compare the resolved path against the default root and return the symbolic label, so a configured root never leaks its absolute path.
+`resolveDshHome` reads the explicit override, then `$DSH_HOME`, then falls back to the operating-system home joined with `.dsh`. `resolveAgentsHome` reads the same three levels for `$DSH_AGENTS_HOME` and `~/.agents`. The chosen value is tilde-expanded and normalized to an absolute path; `dshHomePath` joins child segments with Node's platform path rules. `dshHomeDisplay` and `agentsHomeDisplay` compare the resolved path against the default root and return the symbolic label, so a configured root never leaks its absolute path. `userHomePath` derives a per-user root with the same resolved home, and `migrateLegacyRootToUser` renames a legacy home's direct children under it without ever deleting a source directory.
 
 ### Canonicalization mechanics
 
@@ -111,6 +117,7 @@ These limits define when the helpers are not the right tool. They are current pa
 
 - **Expansion is deliberately narrow** — only bare `~`, `~/...`, and `~\...` use the current operating-system home; named-user forms such as `~alice/...`, environment variables, and shell expressions remain unchanged.
 - **Canonicalization reads but never mutates** — `canonicalizeWatchPath` performs `realpath` probes and propagates errors other than absence; callers still own directory creation, permissions, and trust policy for the resulting path.
+- **Migration is explicit and collision-safe, not transactional** — `migrateLegacyRootToUser` renames direct children one at a time after one collision preflight; a process writing to either root concurrently can still interleave, so migrate a quiescent home and re-run is unnecessary because the preflight refuses a destination that already exists.
 
 <a id="dev-note"></a>
 ### Dev Note

@@ -9,7 +9,7 @@ kind: "package-library"
 
 ## 概述
 
-`dsh-experimental-liveshare-protocol` 让 Liveshare owner bundle 与 Relay 共用同一份必须一致的定义：owner/worker 的 IPC 帧、Relay 不解析只转发的 gateway 帧、Relay 放进被服务页面的查看页载体脚本，以及与 provider 无关的身份契约及其回环 mock 实现。它让 owner bundle 与 Relay 共享这些定义而不必互相依赖，Relay 也不会加载 owner 侧代码。它依赖无状态的 `dsh-brand` 类型库，并把 `cordis` 声明为 peer。
+`dsh-experimental-liveshare-protocol` 让 Liveshare owner bundle 与 Relay 共用同一份必须一致的定义：owner/worker 的 IPC 帧、Relay 不解析只转发的 gateway 帧、Relay 放进被服务页面的查看页载体脚本，以及它从 `@deepseek-ai/dsh-identity-protocol` 复出的、与 provider 无关的身份契约。它让 owner bundle 与 Relay 共享这些定义而不必互相依赖，Relay 也不会加载 owner 侧代码。它依赖无状态的 `dsh-brand` 与 `dsh-identity-protocol` 类型库，并把 `cordis` 声明为 peer。
 
 ## 目录
 
@@ -26,7 +26,7 @@ kind: "package-library"
 
 ### 何时使用
 
-凡是需要说 Liveshare 线路协议或解析某个 viewer 身份的代码，都导入本包：owner host 及其 gateway worker、Relay server 及其验收测试。包根入口同时携带帧编解码、身份契约、查看页载体与查看页状态词汇；mock provider 位于 `src/identity/mock.ts`，仅供测试使用，任何包入口都不导出它。这是一个库——没有 profile 会挂载它，也没有 `cordis.yml` 行引用它。
+凡是需要说 Liveshare 线路协议或解析某个 viewer 身份的代码，都导入本包：owner host 及其 gateway worker、Relay server 及其验收测试。包根入口同时携带帧编解码、身份契约、查看页载体与查看页状态词汇；身份契约来自 `@deepseek-ai/dsh-identity-protocol`，其回环 mock 位于它的 `./src/*` 子路径之后，仅供测试使用。这是一个库——没有 profile 会挂载它，也没有 `cordis.yml` 行引用它。
 
 ### 入口
 
@@ -49,7 +49,7 @@ Relay 兼容性依靠声明版本、能力和明确拒绝，不提供逐发布�
 <details>
 <summary>实现细节——点击展开</summary>
 
-`tunnel-protocol.ts` 只定义帧：`sendFrame` 接收任何带 `readyState` 与 `send` 的 socket，因此本包不需要 socket 依赖，owner gateway 与 Relay 各自传入自己的 `ws` 实例。`identity/` 持有 provider 契约、规范 ACL 身份键编解码，以及 loopback 用的 `mock` provider。两半都不导入 owner 代码，因此 Relay 可以依赖本包而不依赖 owner bundle。
+`tunnel-protocol.ts` 只定义帧：`sendFrame` 接收任何带 `readyState` 与 `send` 的 socket，因此本包不需要 socket 依赖，owner gateway 与 Relay 各自传入自己的 `ws` 实例。`@deepseek-ai/dsh-identity-protocol` 持有 provider 契约、规范 ACL 身份键编解码，以及 loopback 用的 `mock` provider。两半都不导入 owner 代码，因此 Relay 可以依赖本包而不依赖 owner bundle。
 
 | 文件 | 职责 |
 |---|---|
@@ -57,9 +57,7 @@ Relay 兼容性依靠声明版本、能力和明确拒绝，不提供逐发布�
 | [`src/tunnel-protocol.ts`](src/tunnel-protocol.ts) | owner/worker IPC 帧、gateway 帧及其编解码 |
 | [`src/viewer-carrier.ts`](src/viewer-carrier.ts) | 查看页载体脚本及其转发的 owner 页面路由；经根入口引入 |
 | [`src/viewer-states.ts`](src/viewer-states.ts) | 查看页状态词汇及其应答，由根入口复出 |
-| [`src/identity/types.ts`](src/identity/types.ts) | 与 provider 无关的身份三元组与 `IdentityProvider` 契约 |
-| [`src/identity/keys.ts`](src/identity/keys.ts) | 规范 ACL 身份键编解码，以及 adapter 存入身份前的 tenant 规范化 |
-| [`src/identity/mock.ts`](src/identity/mock.ts) | 供本地运行与测试使用的 loopback 身份 provider |
+| [`@deepseek-ai/dsh-identity-protocol`](../../identity/identity-protocol/README.zh.md) | 与 provider 无关的身份契约、规范 ACL 键编解码与回环 mock provider，由根入口复出 |
 | — | 本包不持有可变状态、不做注册，因此不发布 runtime invariant companion；这些编解码由本包自己的测试覆盖。 |
 
 </details>

@@ -1,9 +1,17 @@
 /** Host registry and HTTP adapter for generic Connection RPC channels. */
 
+import { createHash, randomUUID } from 'node:crypto'
 import { Context, Service } from '@deepseek-ai/cordis'
 import type { WebRoute } from '@deepseek-ai/dsh-host-webserver'
+import type { IdentityActor } from '@deepseek-ai/dsh-identity-protocol'
+import type { IdentityProviderService } from '@deepseek-ai/dsh-identity-providers'
+import type { KvTable } from '@deepseek-ai/dsh-storage-domain'
 import type { PeerId, PeerScope, Principal } from '@deepseek-ai/dsh-typert-protocol'
+import { userOf, userPrincipal, userId } from '@deepseek-ai/dsh-user-principal'
+import type { UserId, UserPrincipal } from '@deepseek-ai/dsh-user-principal'
 import type { ConnectionInteractions } from './connect-protocol.ts'
+import { LOGIN_CALLBACK_PATH, LOGIN_REDIRECT, MOUNT_ROOT_REDIRECT, PendingLogins } from './login.ts'
+import type { BrowserSessionId, BrowserSessionRecord } from './storage.ts'
 import {
   RpcId,
   type ClientRequest,
@@ -68,9 +76,13 @@ declare module '@deepseek-ai/cordis' {
 
 /** Host Connection service whose channel registrations belong to the caller fiber. */
 export class HostConnectionService extends Service implements HostConnectionHandle {
-  /** The Peer every authenticated browser connection shares. */
+  /** The Peer a local or loopback browser connection shares; a hosted login mints a user Peer instead. */
   readonly browserPeer: PeerScope
   private readonly peers = new Map<PeerId, PeerRecord>()
+  /** One Peer per logged-in person, reused across that person's requests and sessions. */
+  private readonly userPeers = new Map<UserId, Peer>()
+  /** In-flight authorizations this process started and no provider has answered yet. */
+  private readonly pendingLogins = new PendingLogins()
   private readonly owner: Context
   private disposed = false
   private readonly interceptors = new Map<string, ConnectionRpcInterceptor>()
@@ -83,19 +95,27 @@ export class HostConnectionService extends Service implements HostConnectionHand
    * @param ctx - owning Connection plugin context.
    * @param trustedHosts - deployment authorities accepted by the Host/Origin fence.
    * @param browserAuth - process token and persistent browser-session owner.
+   * @param sessions - durable browser-session records a signed cookie resolves to.
    */
   constructor(
     ctx: Context,
     private readonly trustedHosts: readonly string[],
     private readonly browserAuth: BrowserAuth,
+    private readonly sessions: KvTable<BrowserSessionId, BrowserSessionRecord>,
   ) {
     super(ctx, 'connection')
     this.owner = ctx
     this.browserPeer = new Peer(ctx, { principal: { kind: 'owner' } })
     ctx.effect(() => async () => {
       this.disposed = true
-      const peers = [this.browserPeer, ...Array.from(this.peers.values(), record => record.peer)]
+      const peers = [
+        this.browserPeer,
+        ...Array.from(this.peers.values(), record => record.peer),
+        ...this.userPeers.values(),
+      ]
       this.peers.clear()
+      this.userPeers.clear()
+      this.pendingLogins.clear()
       await Promise.all(peers.map(peer => peer.dispose()))
     }, 'client-connection: Peer scopes')
     this.allowsRemoteAuthorities = trustedHosts.some(isRemoteAuthority)
@@ -125,12 +145,35 @@ export class HostConnectionService extends Service implements HostConnectionHand
     return 'rejection' in admission ? admission.rejection : undefined
   }
 
-  /** Browser requests share an owner Peer; API HTTP does not depend on an attached socket. */
+  /**
+   * Admit one request as its signed credential names: a logged-in user's Peer, the
+   * bootstrap owner Peer of a single-user deployment, or an independent API Peer.
+   * @param request - request headers from the HTTP or upgrade request.
+   * @returns the Peer the request speaks for, or the status refusing it.
+   */
   admit(request: ConnectionTrustRequest): PeerAdmission {
     if (!this.isTrusted(request)) return { rejection: 403 }
     if (this.disposed) return { rejection: 401 }
+    // A mounted trusted forwarder lets the entry authenticate a request this backend
+    // cannot: the caller is recovered from the forwarding proof, never minted here.
+    const trusted = this.owner.get('connectionTrust')
+    const forwarded = trusted === undefined ? undefined : trusted.principalOf(request)
+    if (forwarded !== undefined) {
+      const user = userOf(forwarded)
+      if (user !== undefined) return { peer: this.userPeer(user) }
+    }
     const secure = this.owner.get('webServer')?.protocol === 'https:'
-    if (this.browserAuth.isAuthenticated(request, secure)) return { peer: this.browserPeer }
+    // A browser session always speaks as its logged-in user, never as the owner.
+    const sessionId = this.browserAuth.sessionId(request, secure)
+    if (sessionId !== undefined) {
+      const peer = this.resolveUserPeer(sessionId)
+      return peer === undefined ? { rejection: 401 } : { peer }
+    }
+    // The owner cookie is the single-user bootstrap; a hosted deployment refuses
+    // it so an authenticated browser can never be the process operator.
+    if (this.browserAuth.isAuthenticated(request, secure)) {
+      return this.identityProviders() === undefined ? { peer: this.browserPeer } : { rejection: 401 }
+    }
     const id = this.browserAuth.authenticateApi(request, secure)
     const record = id === undefined ? undefined : this.peers.get(id)
     return record === undefined ? { rejection: 401 } : { peer: record.peer }
@@ -161,6 +204,48 @@ export class HostConnectionService extends Service implements HostConnectionHand
     }
   }
 
+  /**
+   * The registered identity-adapter registry, or undefined for a single-user deployment.
+   * An empty registry (the seam mounted with no adapter) is single-user: the hosted login
+   * paths gate on a registered provider, not on the seam's presence, so a deployment that
+   * enables no provider keeps the launch-token-to-owner-cookie loopback.
+   */
+  private identityProviders(): IdentityProviderService | undefined {
+    const providers = this.owner.get('identityProviders')
+    return providers !== undefined && providers.list().length > 0 ? providers : undefined
+  }
+
+  /** Resolve one durable session id to that person's Peer, refusing revoked or expired records. */
+  private resolveUserPeer(sessionId: BrowserSessionId): PeerScope | undefined {
+    const record = this.sessions.get(sessionId)
+    if (record === undefined) return undefined
+    const now = Date.now()
+    // Expiry refuses admission; the record itself is removed by logout.
+    if (record.issuedAt > now || record.expiresAt <= now) return undefined
+    return this.userPeer(record.user)
+  }
+
+  /** The one Peer a logged-in person's requests share, keyed by their canonical user id. */
+  private userPeer(user: UserPrincipal): PeerScope {
+    const key = userId(user)
+    let peer = this.userPeers.get(key)
+    if (peer === undefined) {
+      peer = new Peer(this.owner, { principal: user })
+      this.userPeers.set(key, peer)
+    }
+    return peer
+  }
+
+  /** Write one mount-relative 303 redirect with no stored response. */
+  private redirect(location: string, response: ConnectionIndexResponse): void {
+    response.writeHead(303, {
+      'cache-control': 'no-store',
+      'location': location,
+      'referrer-policy': 'no-referrer',
+    })
+    response.end()
+  }
+
   private isTrusted(request: ConnectionTrustRequest): boolean {
     const carrier = this.owner.get('webServer')
     return isTrustedApiRequest(request, this.trustedHosts, carrier?.host, carrier?.protocol ?? 'http:')
@@ -188,10 +273,202 @@ export class HostConnectionService extends Service implements HostConnectionHand
   }
 
   /**
-   * Authenticate an index request; native TLS listeners mint Secure cookies.
+   * Authenticate one frontend index request. A logged-in session renders for its
+   * user Peer, a single-user deployment renders for the bootstrap owner Peer, and a
+   * hosted deployment sends every browser without a session to the login route: a
+   * launch token starts the flow and a returning visitor signs in again, so neither
+   * ever receives an owner cookie.
+   * @param request - root or configured-index HTTP request.
+   * @param response - response owned when no Peer is returned.
+   * @returns the Peer the index renders for, or undefined after writing the response.
    */
-  authorizeIndex(request: ConnectionIndexRequest, response: ConnectionIndexResponse): boolean {
-    return this.browserAuth.authorizeIndex(request, response, this.ctx.get('webServer')?.protocol === 'https:')
+  authorizeIndex(request: ConnectionIndexRequest, response: ConnectionIndexResponse): PeerScope | undefined {
+    // A trusted forwarder authenticates the index request before any cookie path, so a
+    // backend serving one person still renders the entry-admitted index for that person.
+    const trusted = this.owner.get('connectionTrust')
+    const forwarded = trusted === undefined ? undefined : trusted.principalOf(request)
+    if (forwarded !== undefined) {
+      const user = userOf(forwarded)
+      if (user !== undefined) return this.userPeer(user)
+    }
+    const secure = this.owner.get('webServer')?.protocol === 'https:'
+    const sessionId = this.browserAuth.sessionId(request, secure)
+    if (sessionId !== undefined) {
+      const peer = this.resolveUserPeer(sessionId)
+      if (peer === undefined) this.browserAuth.writeUnauthorized(request, response)
+      return peer
+    }
+    if (this.identityProviders() !== undefined) {
+      // A hosted deployment never hands the owner to a browser: the launch token
+      // proves this browser may start a login, not that it is the operator.
+      if (this.browserAuth.isLaunchRequest(request, secure)) {
+        this.redirect(LOGIN_REDIRECT, response)
+        return undefined
+      }
+      // A returning visitor without a session signs in again instead of meeting a
+      // bare refusal: the index is a navigation, and the login route is the only
+      // hosted way to obtain a session.
+      this.redirect(LOGIN_REDIRECT, response)
+      return undefined
+    }
+    return this.browserAuth.authorizeIndex(request, response, secure) ? this.browserPeer : undefined
+  }
+
+  /**
+   * Start one browser login: select the configured identity provider and redirect
+   * to its authorization endpoint. Without a registered provider the deployment
+   * keeps single-user behavior and this route returns to the mount root.
+   * @param request - GET request, optionally naming `provider`.
+   * @param response - response owned to completion.
+   */
+  authorizeLogin(request: ConnectionIndexRequest, response: ConnectionIndexResponse): void {
+    if (!this.isTrusted(request) || this.disposed) {
+      response.writeHead(this.disposed ? 401 : 403)
+      response.end(this.disposed ? 'unauthorized' : 'forbidden')
+      return
+    }
+    const providers = this.identityProviders()
+    if (providers === undefined) {
+      this.redirect(MOUNT_ROOT_REDIRECT, response)
+      return
+    }
+    const ids = providers.list()
+    const secure = this.owner.get('webServer')?.protocol === 'https:'
+    const origin = this.browserAuth.origin(request, secure)
+    /* v8 ignore next 4 -- the Host fence above already refused a request without a parsable Host */
+    if (origin === undefined) {
+      this.browserAuth.writeUnauthorized(request, response)
+      return
+    }
+    const url = new URL(request.url ?? '/', 'http://dsh.invalid')
+    const selected = url.searchParams.get('provider')
+    const id = selected ?? (ids.length === 1 ? ids[0] : undefined)
+    const provider = id === undefined ? undefined : providers.get(id)
+    if (provider === undefined) {
+      response.writeHead(400, { 'cache-control': 'no-store', 'content-type': 'text/plain; charset=utf-8' })
+      response.end(selected === null
+        ? `identity provider must be selected with ?provider= (${ids.join(', ')})\n`
+        : `unknown identity provider ${JSON.stringify(selected)}\n`)
+      return
+    }
+    const redirectUri = `${origin}${LOGIN_CALLBACK_PATH}`
+    const { state, codeVerifier } = this.pendingLogins.begin(provider.id, redirectUri)
+    const challenge = createHash('sha256').update(codeVerifier).digest('base64url')
+    let location: string
+    try {
+      location = provider.authorizationUrl({
+        state, redirectUri, scopes: provider.scopes, codeChallenge: challenge, codeChallengeMethod: 'S256',
+      }).href
+    } catch (error) {
+      // A provider that cannot build its own endpoint is a deployment fault; the
+      // browser gets no redirect and the failure is reported once here.
+      this.owner.logger.warn(`client-connection: identity provider '${provider.id}' produced no authorization URL: ${String(error)}`)
+      response.writeHead(502, { 'cache-control': 'no-store' })
+      response.end()
+      return
+    }
+    this.redirect(location, response)
+  }
+
+  /**
+   * Complete one browser login: exchange the provider code, persist the session
+   * record, and mint the signed session cookie.
+   * @param request - provider callback carrying `code` and `state`.
+   * @param response - response owned to completion.
+   * @returns resolution after the redirect is written.
+   */
+  async authorizeLoginCallback(
+    request: ConnectionIndexRequest,
+    response: ConnectionIndexResponse,
+  ): Promise<void> {
+    if (!this.isTrusted(request) || this.disposed) {
+      response.writeHead(this.disposed ? 401 : 403)
+      response.end(this.disposed ? 'unauthorized' : 'forbidden')
+      return
+    }
+    const secure = this.owner.get('webServer')?.protocol === 'https:'
+    const url = new URL(request.url ?? '/', 'http://dsh.invalid')
+    const state = url.searchParams.get('state')
+    const code = url.searchParams.get('code')
+    const pending = state === null ? undefined : this.pendingLogins.consume(state)
+    const provider = pending === undefined ? undefined : this.identityProviders()?.get(pending.providerId)
+    const origin = this.browserAuth.origin(request, secure)
+    const authority = this.browserAuth.audience(request, secure)
+    if (state === null || code === null || pending === undefined || provider === undefined
+      || origin === undefined || authority === undefined) {
+      this.browserAuth.writeUnauthorized(request, response)
+      return
+    }
+    let actor: IdentityActor
+    try {
+      actor = await provider.exchange({
+        code,
+        state,
+        redirectUri: pending.redirectUri,
+        ...(pending.codeVerifier === undefined ? {} : { codeVerifier: pending.codeVerifier }),
+      })
+    } catch (error) {
+      // The provider refused the code (expired, replayed, or mismatched); the
+      // browser is not signed in and starts again from /login.
+      this.owner.logger.warn(`client-connection: identity provider '${provider.id}' rejected the callback: ${String(error)}`)
+      this.browserAuth.writeUnauthorized(request, response)
+      return
+    }
+    const user = userPrincipal(actor)
+    if (user === undefined) {
+      this.browserAuth.writeUnauthorized(request, response)
+      return
+    }
+    const issuedAt = Date.now()
+    const expiresAt = issuedAt + this.browserAuth.sessionLifetimeMilliseconds
+    const sessionId = randomUUID() as BrowserSessionId
+    await this.sessions.put(sessionId, {
+      sessionId,
+      user,
+      userKey: userId(user),
+      providerId: user.providerId,
+      issuedAt,
+      expiresAt,
+      csrf: state,
+    })
+    response.writeHead(303, {
+      'cache-control': 'no-store',
+      'location': MOUNT_ROOT_REDIRECT,
+      'referrer-policy': 'no-referrer',
+      'set-cookie': this.browserAuth.signSessionCookie(authority, sessionId, issuedAt, expiresAt, secure),
+    })
+    response.end()
+  }
+
+  /**
+   * End one browser session: delete its durable record and expire the cookie. The
+   * next request carrying that cookie resolves to no Peer and is refused.
+   * @param request - logout request carrying the session cookie.
+   * @param response - response owned to completion.
+   * @returns resolution after the record is deleted and the redirect is written.
+   */
+  async authorizeLogout(
+    request: ConnectionIndexRequest,
+    response: ConnectionIndexResponse,
+  ): Promise<void> {
+    if (!this.isTrusted(request) || this.disposed) {
+      response.writeHead(this.disposed ? 401 : 403)
+      response.end(this.disposed ? 'unauthorized' : 'forbidden')
+      return
+    }
+    const secure = this.owner.get('webServer')?.protocol === 'https:'
+    const sessionId = this.browserAuth.sessionId(request, secure)
+    if (sessionId !== undefined) await this.sessions.delete(sessionId)
+    const authority = this.browserAuth.audience(request, secure)
+    const headers: Record<string, string> = {
+      'cache-control': 'no-store',
+      'location': MOUNT_ROOT_REDIRECT,
+      'referrer-policy': 'no-referrer',
+    }
+    /* v8 ignore else -- the Host fence above already refused a request without a parsable Host */
+    if (authority !== undefined) headers['set-cookie'] = this.browserAuth.clearSessionCookie(authority, secure)
+    response.writeHead(303, headers)
+    response.end()
   }
 
   /** Add this process's launch token to the clean application URL. */

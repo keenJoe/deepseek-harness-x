@@ -310,6 +310,8 @@ flowchart LR
   pkg_lsp["lsp"]
   svc_lsp["ctx.lsp<br/>Language-server navigation seam"]
   pkg_tool_lsp["tool-lsp"]
+  pkg_identity_providers["identity-providers"]
+  svc_identityProviders["ctx.identityProviders<br/>Identity-provider registry"]
   pkg_cordis_host_runner["cordis-host-runner"]
   svc_dynamicCordisRunner["ctx.dynamicCordisRunner<br/>Dynamic Cordis package host runner"]
   svc_cordisInspect["ctx.cordisInspect<br/>Dynamic Cordis inspect registry"]
@@ -392,6 +394,7 @@ flowchart LR
   pkg_host_directory_picker_native --> svc_directoryPicker
   pkg_host_product_telemetry_otel --> svc_productTelemetry
   pkg_host_webserver --> svc_webServer
+  pkg_identity_providers --> svc_identityProviders
   pkg_inspector --> svc_inspector
   pkg_jobs --> svc_jobs
   pkg_jobs_local --> svc_jobs
@@ -755,6 +758,7 @@ flowchart LR
 | `ctx.workflowEngine` | `seam` | [`workflow`](../packages/workflow/workflow) | [`workflow-ptc`](../packages/workflow/workflow-ptc) | [`tool-workflow`](../packages/workflow/tool-workflow), [`tool-ralph`](../packages/experimental/tool-ralph) | - | One engine per context, as in bash, with no named-provider registry; the general workflow and fixed Ralph consumers start runs whose agent() calls fan out through ctx.subagents. |
 | `ctx.webhookRuntime` | `core` | [`webhook`](../packages/experimental/webhook) | - | [`webhook-github`](../packages/experimental/webhook-github) | - | Provider adapters dispatch authenticated deliveries; trusted plugins register independent process-local rules, and the runtime turns non-null results into ordinary Workspace-backed Sessions without delivery or completion state. |
 | `ctx.lsp` | `seam` | [`lsp`](../packages/lsp/lsp) | [`lsp-stdio`](../packages/lsp/lsp-stdio) | [`tool-lsp`](../packages/lsp/tool-lsp) | - | Provider registration and selection plus normalized query execution over exactly four operations; the seam offers no protocol escape hatch, so a backend translates into the normalized request and result. |
+| `ctx.identityProviders` | `seam` | [`identity-providers`](../packages/identity/identity-providers) | - | - | - | A provider plugin registers one adapter per identity source under a stable id; the seam owns the id-to-adapter registry, never the protocol, and the hosted login flow resolves a browser callback through a selected adapter. |
 | `ctx.dynamicCordisRunner` | `core` | [`cordis-host-runner`](../packages/extensions/cordis-host-runner) | - | [`tool-cordis`](../packages/extensions/tool-cordis) | - | Owns the in-memory definition registry, the vm sandbox for host halves, and the request-run round trip; browser pages reach the same service over the wire through its remote namespace. |
 | `ctx.cordisInspect` | `core` | [`cordis-host-runner`](../packages/extensions/cordis-host-runner) | - | [`tool-cordis`](../packages/extensions/tool-cordis) | - | Registers host inspect providers, mirrors the client provider manifest, and routes client queries through the dynamic Cordis transport. |
 | `ctx.liveshareShares` | `service` | [`experimental-liveshare`](../packages/experimental/liveshare) | - | - | - | Publishes the owner share-management operations as one Typert Remote namespace that the owner client face calls; every method delegates to the same operations the same-origin routes used. |

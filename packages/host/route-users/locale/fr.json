@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Routeur multi-utilisateur",
+    "description": "Achemine chaque navigateur connecté vers son propre backend depuis une URL d’entrée."
+  }
+}

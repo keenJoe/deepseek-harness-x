@@ -1,0 +1,13 @@
+# Per-user backend overlay (`dsh route-users --user-patch`).
+#
+# Each backend renders the GUI and verifies the entry-signed caller header with the same
+# shared forward secret the entry signs with. The login cookie key never reaches a backend.
+#
+#   export DSH_FORWARD_SECRET=your-forward-secret
+#   pnpm dsh route-users --profile web --users ou_1,ou_2 --tenant tenant-7 \
+#     --entry-patch apps/cli/config/examples/multi-user-feishu-entry.yml \
+#     --user-patch apps/cli/config/examples/multi-user-feishu-backend.yml
+- id: route-users-backend
+  disabled: false
+  config:
+    forwardSecret: !!js process.env.DSH_FORWARD_SECRET

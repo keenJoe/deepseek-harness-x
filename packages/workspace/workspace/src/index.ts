@@ -13,6 +13,8 @@ import type {} from '@deepseek-ai/dsh-session-persistence'
 import type { DomainGlobal, KvTable } from '@deepseek-ai/dsh-storage-domain'
 import { WorkspaceEntity } from './entity.ts'
 import type { WorkspaceEntityHost } from './entity.ts'
+import { principalOf } from '@deepseek-ai/dsh-typert-protocol'
+import { userOf, userId } from '@deepseek-ai/dsh-user-principal'
 
 export { WorkspaceMoveInvalidError } from './entity.ts'
 import { defaultWorkspaceTitle, fullyQualifiedWorkspacePath, realpathNormalize } from './paths.ts'
@@ -280,7 +282,9 @@ export class WorkspaceRegistry extends Service {
    * @returns the workspace, or `undefined` when unknown.
    */
   get(id: WorkspaceId): Workspace | undefined {
-    return this.entities.get(id)
+    const entity = this.entities.get(id)
+    if (entity === undefined) return undefined
+    return this._inScope(entity.owner, this._userKey()) ? entity : undefined
   }
 
   /**
@@ -290,13 +294,16 @@ export class WorkspaceRegistry extends Service {
    * @returns a fresh ordered array of workspace entities.
    */
   list(): Workspace[] {
-    return this.requireState().workspaceIds.map((id) => {
-      const entity = this.entities.get(id)
-      if (entity === undefined) {
-        throw new Error(`workspace registry order references missing workspace '${id}'`)
-      }
-      return entity
-    })
+    const userKey = this._userKey()
+    return this.requireState().workspaceIds
+      .map((id) => {
+        const entity = this.entities.get(id)
+        if (entity === undefined) {
+          throw new Error(`workspace registry order references missing workspace '${id}'`)
+        }
+        return entity
+      })
+      .filter(entity => this._inScope(entity.owner, userKey))
   }
 
   /**
@@ -321,17 +328,26 @@ export class WorkspaceRegistry extends Service {
   insertBefore(id: WorkspaceId, beforeId?: WorkspaceId): Promise<readonly WorkspaceId[]> {
     return this.enqueueOperation(async () => {
       const state = this.requireState()
+      const userKey = this._userKey()
       if (!state.workspaceIds.includes(id)) throw new WorkspaceOrderInvalidError(id)
+      const entity = this.entities.get(id)
+      if (entity === undefined) throw new WorkspaceOrderInvalidError(id)
+      if (!this._inScope(entity.owner, userKey)) throw new WorkspaceOrderInvalidError(id)
       if (beforeId !== undefined && !state.workspaceIds.includes(beforeId)) {
         throw new WorkspaceOrderInvalidError(beforeId)
       }
-      if (beforeId === id) return state.workspaceIds
+      if (beforeId !== undefined && beforeId !== id) {
+        const anchor = this.entities.get(beforeId)
+        if (anchor === undefined) throw new WorkspaceOrderInvalidError(beforeId)
+        if (!this._inScope(anchor.owner, userKey)) throw new WorkspaceOrderInvalidError(beforeId)
+      }
+      if (beforeId === id) return this._scopeIds(state.workspaceIds, userKey)
       const without = state.workspaceIds.filter(workspaceId => workspaceId !== id)
       const at = beforeId === undefined ? without.length : without.indexOf(beforeId)
       const workspaceIds = [...without.slice(0, at), id, ...without.slice(at)]
-      if (sameIds(workspaceIds, state.workspaceIds)) return state.workspaceIds
+      if (sameIds(workspaceIds, state.workspaceIds)) return this._scopeIds(state.workspaceIds, userKey)
       await this.setState({ ...state, workspaceIds })
-      return workspaceIds
+      return this._scopeIds(workspaceIds, userKey)
     })
   }
 
@@ -342,7 +358,10 @@ export class WorkspaceRegistry extends Service {
    * @returns the archived session ids in archive order.
    */
   get archivedSessionIds(): readonly SessionId[] {
-    return this.requireState().archivedSessionIds
+    const userKey = this._userKey()
+    const ids = this.requireState().archivedSessionIds
+    if (userKey === undefined) return ids
+    return ids.filter(id => this._sessionOwner(id) === userKey)
   }
 
   /**
@@ -366,6 +385,9 @@ export class WorkspaceRegistry extends Service {
     return this.enqueueOperation(async () => {
       // The chain slot serializes against every other registry write, so this
       // check-then-write pair cannot interleave with another archive.
+      if (!this._sessionInScope(sessionId, this._userKey())) {
+        throw new WorkspaceUnknownSessionError(sessionId, 'archive')
+      }
       if (this.requireState().archivedSessionIds.includes(sessionId)) return
       if (!(await this.sessionKnown(sessionId))) {
         throw new WorkspaceUnknownSessionError(sessionId, 'archive')
@@ -402,6 +424,7 @@ export class WorkspaceRegistry extends Service {
       // check-then-write pair cannot interleave with a concurrent archive.
       const state = this.requireState()
       if (!state.archivedSessionIds.includes(sessionId)) return
+      if (!this._sessionInScope(sessionId, this._userKey())) return
       await this.setState({
         ...state,
         archivedSessionIds: state.archivedSessionIds.filter(id => id !== sessionId),
@@ -415,7 +438,10 @@ export class WorkspaceRegistry extends Service {
    * @returns Session ids in pin order (most recently pinned first).
    */
   get pinnedSessionIds(): readonly SessionId[] {
-    return this.requireState().pinnedSessionIds
+    const userKey = this._userKey()
+    const ids = this.requireState().pinnedSessionIds
+    if (userKey === undefined) return ids
+    return ids.filter(id => this._sessionOwner(id) === userKey)
   }
 
   /**
@@ -429,6 +455,9 @@ export class WorkspaceRegistry extends Service {
     return this.enqueueOperation(async () => {
       // The chain slot serializes against every other registry write, so this
       // check-then-write pair cannot interleave with another pin or archive.
+      if (!this._sessionInScope(sessionId, this._userKey())) {
+        throw new WorkspaceUnknownSessionError(sessionId, 'pin')
+      }
       if (this.requireState().pinnedSessionIds.includes(sessionId)) return
       if (this.requireState().archivedSessionIds.includes(sessionId)) {
         throw new WorkspaceArchivedSessionPinError(sessionId)
@@ -458,11 +487,72 @@ export class WorkspaceRegistry extends Service {
       // check-then-write pair cannot interleave with a concurrent pin.
       const state = this.requireState()
       if (!state.pinnedSessionIds.includes(sessionId)) return
+      if (!this._sessionInScope(sessionId, this._userKey())) return
       await this.setState({
         ...state,
         pinnedSessionIds: state.pinnedSessionIds.filter(id => id !== sessionId),
       })
     })
+  }
+
+  /**
+   * Workspaces owned by one user key, in durable registry order. A global-scope
+   * read: it answers for an explicit key instead of the current caller, which is
+   * what the Remote access policy needs to bind a non-owner Peer's own ids.
+   * @param userKey - canonical user key stamped on that user's records.
+   * @returns the owned Workspace ids; empty when the key owns none.
+   */
+  workspacesOwnedBy(userKey: string): readonly WorkspaceId[] {
+    return this.requireState().workspaceIds.filter(id => this.entities.get(id)?.owner === userKey)
+  }
+
+  /**
+   * Sessions accounted by the workspaces one user key owns, in durable registry
+   * order and each workspace's own session order. A session is accounted by at
+   * most one workspace (the one-owner accounting invariant), so ids never repeat.
+   * A global-scope read for the same reason as {@link workspacesOwnedBy}.
+   * @param userKey - canonical user key stamped on the accounting workspaces.
+   * @returns the owned Session ids; empty when the key owns no workspace or none
+   * accounts a session.
+   */
+  sessionsOwnedBy(userKey: string): readonly SessionId[] {
+    const table = this.requireTable()
+    const ids: SessionId[] = []
+    for (const id of this.requireState().workspaceIds) {
+      const record = table.get(id)
+      if (record !== undefined && record.owner === userKey) ids.push(...record.sessionIds)
+    }
+    return ids
+  }
+
+  /**
+   * The owner key of the workspace accounting one session, or undefined when
+   * no workspace accounts it. A session is accounted by at most one workspace
+   * (the one-owner accounting invariant), so the first record match is
+   * authoritative. Sessions outside every workspace carry no ownership fact.
+   * @param sessionId - Session to resolve.
+   * @returns the accounting workspace's owner key, or undefined when unaccounted.
+   */
+  private _sessionOwner(sessionId: SessionId): string | undefined {
+    const table = this.requireTable()
+    for (const id of this.requireState().workspaceIds) {
+      const record = table.get(id)
+      if (record !== undefined && record.sessionIds.includes(sessionId)) return record.owner
+    }
+    return undefined
+  }
+
+  /**
+   * Whether the calling principal may act on one session. Global scope admits
+   * every session; a user principal admits only sessions accounted by a
+   * workspace the user owns.
+   * @param sessionId - Session to resolve.
+   * @param userKey - the caller's key, already resolved via _userKey.
+   * @returns whether the session is within the caller's scope.
+   */
+  private _sessionInScope(sessionId: SessionId, userKey: string | undefined): boolean {
+    if (userKey === undefined) return true
+    return this._sessionOwner(sessionId) === userKey
   }
 
   /**
@@ -501,15 +591,19 @@ export class WorkspaceRegistry extends Service {
    */
   async resolveByPath(path: string): Promise<Workspace | undefined> {
     const canonical = await realpathNormalize(path)
+    const userKey = this._userKey()
     for (const entity of this.entities.values()) {
-      if (entity.path === canonical) return entity
+      if (entity.path === canonical && this._inScope(entity.owner, userKey)) return entity
     }
     return undefined
   }
 
   private async createCanonical(canonical: string, title?: string, firstUse = false): Promise<WorkspaceEntity> {
+    const userKey = this._userKey()
     for (const entity of this.entities.values()) {
-      if (entity.path === canonical) return entity
+      if (entity.path !== canonical) continue
+      if (this._inScope(entity.owner, userKey)) return entity
+      throw new Error(`cannot create a workspace at '${canonical}': the path is registered by another user`)
     }
 
     const workspaceName = title ?? defaultWorkspaceTitle(canonical)
@@ -523,6 +617,7 @@ export class WorkspaceRegistry extends Service {
       sessionIds: [],
       createdAt: now,
       updatedAt: now,
+      ...(userKey === undefined ? {} : { owner: userKey }),
     }
     const entity = new WorkspaceEntity(this.host, id, record)
     this.entities.set(id, entity)
@@ -585,6 +680,7 @@ export class WorkspaceRegistry extends Service {
   private async deleteKnown(id: WorkspaceId): Promise<boolean> {
     const entity = this.entities.get(id)
     if (entity === undefined) return false
+    if (!this._inScope(entity.owner, this._userKey())) return false
     const state = this.requireState()
     const nextState = {
       ...state,
@@ -881,6 +977,54 @@ export class WorkspaceRegistry extends Service {
     return this.table
   }
 
+  /**
+   * Resolve the calling user's canonical partition key for registry scoping.
+   *
+   * The owner principal and a non-Remote read both resolve undefined, which
+   * preserves the global registry. Any principal that is not a user also
+   * resolves undefined; only the user principal yields its own key, so a user
+   * sees and mutates only records whose owner equals that key.
+   * @returns the branded user key as a string, or undefined for global scope.
+   */
+  private _userKey(): string | undefined {
+    // Typert registers `invocation` as a root accessor so a non-Remote read
+    // resolves undefined; a standalone service test never constructs a Remote
+    // Service, so the property is absent there. The `in` guard keeps the
+    // registry constructible without Typert while still reading the caller
+    // when a Remote call carries an own invocation.
+    const invocation = 'invocation' in this.ctx ? this.ctx.invocation : undefined
+    const principal = principalOf(invocation)
+    if (principal === undefined) return undefined
+    const user = userOf(principal)
+    if (user === undefined) return undefined
+    return String(userId(user))
+  }
+
+  /**
+   * Whether one record is visible to the calling principal. Global scope
+   * admits every record; a user principal admits only records it owns.
+   * @param owner - the record's stamped owner key.
+   * @param userKey - the caller's key, already resolved via _userKey.
+   * @returns whether the record is within the caller's scope.
+   */
+  private _inScope(owner: string | undefined, userKey: string | undefined): boolean {
+    if (userKey === undefined) return true
+    return owner === userKey
+  }
+
+  /**
+   * Project a durable order to the calling principal's own workspaces. Global
+   * scope returns the complete order; a user scope drops every id accounted by
+   * another owner, so a reorder result never leaks another user's workspace
+   * identity.
+   * @param ids - durable registry order to project.
+   * @param userKey - caller key from _userKey, or undefined for global scope.
+   * @returns the projected order, in the same relative sequence.
+   */
+  private _scopeIds(ids: readonly WorkspaceId[], userKey: string | undefined): WorkspaceId[] {
+    if (userKey === undefined) return [...ids]
+    return ids.filter(id => this._inScope(this.entities.get(id)?.owner, userKey))
+  }
   private requireState(): WorkspaceDomainState {
     if (this.state === undefined) throw new Error('workspace registry is not started yet')
     return this.state

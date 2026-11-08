@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "OIDC-Identitätsanbieter",
+    "description": "Ergänzt eine vom Deployment konfigurierte OpenID-Connect-Anmeldung: Der Browser autorisiert sich beim Aussteller, und die Harness prüft das zurückgegebene id_token, bevor sie die Sitzung zulässt.",
+    "detail": "docs/DETAIL.md"
+  }
+}

@@ -23,7 +23,7 @@ import {
 import TypertRegistry, { type TypertContribution } from '@deepseek-ai/dsh-typert-registry'
 import TypertGatewayService, { TypertGatewayError } from '@deepseek-ai/dsh-api-gateway'
 import RemoteAccessService from '@deepseek-ai/dsh-api-remote-access'
-import { provideBrowserCredentials } from './browser-credentials.ts'
+import { provideBrowserCredentials, provideBrowserSessionDomain } from './browser-credentials.ts'
 import { ownerPeer } from './peer.ts'
 
 interface FixtureAgent {
@@ -1375,6 +1375,7 @@ describe('TypertGatewayService', () => {
     const ctx = new Context().extend({ fixtureScope: 'http-caller' })
     const routes: WebRoute[] = []
     provideBrowserCredentials(ctx)
+    provideBrowserSessionDomain(ctx)
     ctx.provide('webServer', fakeHttpServer(routes) as WebServer)
     const connectionFiber = ctx.plugin({ inject: [...connectionInject], apply: applyConnection })
     await connectionFiber

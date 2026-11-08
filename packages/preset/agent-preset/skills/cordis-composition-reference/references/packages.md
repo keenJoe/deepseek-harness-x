@@ -291,6 +291,13 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 | `@deepseek-ai/dsh-host-product-telemetry-otel` | yes | Explicit product usage events exported through OpenTelemetry HTTP logs |
 | `@deepseek-ai/dsh-host-webserver` | yes | Web route-registration plugin: HTTP and upgrade routes, per-Peer index transform taps, and static dist fallback |
 
+## identity
+
+| Package | Config | Description |
+|---|---|---|
+| `@deepseek-ai/dsh-identity-provider-oidc` | yes | OpenID Connect identity provider: discovers one issuer's endpoints and exchanges an authorization code for a verified id_token |
+| `@deepseek-ai/dsh-identity-providers` | no | Identity-provider capability seam (ctx.identityProviders): a registry of deployment-selected OIDC/SSO identity adapters for hosted multi-user login |
+
 ## interaction
 
 | Package | Config | Description |

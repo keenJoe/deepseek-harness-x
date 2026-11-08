@@ -4,7 +4,7 @@
  * @module @deepseek-ai/dsh-home-paths
  */
 
-import { opendir, realpath } from 'node:fs/promises'
+import { mkdir, opendir, readdir, realpath, rename } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
 
@@ -25,6 +25,9 @@ export const DEFAULT_AGENTS_HOME_DISPLAY = `~/${AGENTS_HOME_DIR_NAME}`
 
 /** Environment variable that overrides the default shared agent configuration root. */
 export const AGENTS_HOME_ENV = 'DSH_AGENTS_HOME'
+
+/** Directory name under the DeepSeek Harness home that holds one subdirectory per logged-in user. */
+export const USERS_DIR_NAME = 'users'
 
 /**
  * Give a native filesystem watcher one canonical spelling of a path, even
@@ -159,6 +162,67 @@ export function resolveAgentsHome(configured?: string, env: Record<string, strin
  */
 export function dshHomePath(...segments: string[]): string {
   return join(resolveDshHome(), ...segments)
+}
+
+/**
+ * Join path segments onto one logged-in user's per-user root.
+ *
+ * The root is `<harness-home>/users/<userKey>`, where `userKey` is the
+ * canonical percent-encoded identity key produced by the identity packages;
+ * it is never derived from caller-controlled input here. The function is a
+ * pure path join: it neither validates the key nor creates the directory.
+ * An empty `userKey` still yields the `users` directory itself, so callers
+ * that derive a key from a principal must reject an empty provider or subject
+ * before calling.
+ * @param userKey - canonical user key (one traversal-safe path segment).
+ * @param segments - path segments appended to the user's root; an empty list returns the root itself.
+ * @returns the normalized absolute joined path.
+ */
+export function userHomePath(userKey: string, ...segments: string[]): string {
+  return join(resolveDshHome(), USERS_DIR_NAME, userKey, ...segments)
+}
+
+/**
+ * Move a directory's whole contents from the legacy owner/global home into a
+ * per-user root, leaving the legacy directory itself in place but empty.
+ *
+ * The opt-in partition migration: it renames each direct child of `legacyRoot`
+ * into the matching per-user root (recursively), and refuses before touching
+ * anything when any destination child already exists or the source directory
+ * is missing, so the legacy home stays intact on any failure. A destination
+ * that does not exist yet is created.
+ * @param legacyRoot - absolute owner/global home whose direct children are the shared durable roots.
+ * @param targetUserRoot - absolute per-user root to receive those children.
+ * @returns the relative names of the moved children, in source enumeration order.
+ * @throws when `legacyRoot` is not a readable directory, or when any destination
+ *   child already exists.
+ */
+export async function migrateLegacyRootToUser(legacyRoot: string, targetUserRoot: string): Promise<string[]> {
+  const sources = await readdir(legacyRoot, { withFileTypes: true })
+  let targetEntries: string[] = []
+  try {
+    targetEntries = await readdir(targetUserRoot)
+  } catch (error: unknown) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+  }
+  const existing = new Set(targetEntries)
+  const children = sources.map(entry => entry.name)
+  for (const name of children) {
+    if (existing.has(name)) {
+      throw new Error(`cannot migrate '${legacyRoot}' into '${targetUserRoot}': '${name}' already exists`)
+    }
+  }
+  let created = false
+  const moved: string[] = []
+  for (const name of children) {
+    if (!created) {
+      await mkdir(targetUserRoot, { recursive: true })
+      created = true
+    }
+    await rename(join(legacyRoot, name), join(targetUserRoot, name))
+    moved.push(name)
+  }
+  return moved
 }
 
 /**

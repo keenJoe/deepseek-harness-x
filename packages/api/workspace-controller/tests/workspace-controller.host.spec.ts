@@ -10,6 +10,7 @@ import { RemoteError, type PeerId, type Principal, type RemoteInvocation } from 
 import WorkspaceRegistry from '@deepseek-ai/dsh-workspace'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import RemoteAccessService, { type RemoteAccessCondition, type RemoteAccessRole } from '@deepseek-ai/dsh-api-remote-access'
+import { userId, userPrincipal, type UserPrincipal } from '@deepseek-ai/dsh-user-principal'
 import WorkspaceController from '../src/index.ts'
 import { DEFAULT_WORKSPACE_DIRECTORY } from '../src/default-workspace.ts'
 import { WorkspaceFeed } from '../src/feed.ts'
@@ -89,10 +90,10 @@ const WORKSPACE_VIEWER: RemoteAccessRole<'workspace'> = { name: 'test:workspace-
 /** Shows one Session id in the follow stream. */
 const SESSION_VIEWER: RemoteAccessRole<'session'> = { name: 'test:session-viewer', resource: 'session', actions: ['workspace/follow'] }
 
-/** The Context a Gateway dispatch of `workspace/follow` binds for `principal`. */
-function followerContext(ctx: Context, principal: Principal): Context {
+/** The Context a Gateway dispatch of one Workspace verb binds for `principal`. */
+function peerContext(ctx: Context, principal: Principal, method: string): Context {
   const invocation: RemoteInvocation = {
-    request: { namespace: 'workspace', method: 'follow', args: {} },
+    request: { namespace: 'workspace', method, args: {} },
     service: 'workspaceController',
     peer: { id: 'workspace-access-peer' as PeerId, ctx, principal, interactions: 'answer', signal: new AbortController().signal, dispose: async () => {} },
     signal: new AbortController().signal,
@@ -470,7 +471,7 @@ describe('WorkspaceController follow', () => {
     })
     const guest: Principal = { kind: 'test-guest', guest: 'workspace-controller' }
     const abort = new AbortController()
-    const iterator = followerContext(ctx, guest).workspaceController.follow(abort.signal)[Symbol.asyncIterator]()
+    const iterator = peerContext(ctx, guest, 'follow').workspaceController.follow(abort.signal)[Symbol.asyncIterator]()
     await expect(nextFrame(iterator)).resolves.toEqual({
       type: 'baseline',
       value: {
@@ -518,7 +519,7 @@ describe('WorkspaceController follow', () => {
       ],
     })
     const abort = new AbortController()
-    const iterator = followerContext(ctx, { kind: 'test-guest', guest: 'withdrawn' }).workspaceController.follow(abort.signal)[Symbol.asyncIterator]()
+    const iterator = peerContext(ctx, { kind: 'test-guest', guest: 'withdrawn' }, 'follow').workspaceController.follow(abort.signal)[Symbol.asyncIterator]()
     const ids = (frame: WorkspaceFollowFrame): string[] =>
       frame.type === 'baseline' || frame.type === 'replace' ? frame.value.items.map(item => item.workspaceId).sort() : []
     const opening = await nextFrame(iterator)
@@ -609,5 +610,41 @@ describe('first-use Remote', () => {
     vi.spyOn(ctx.workspaceRegistry, 'initializeDefault').mockRejectedValueOnce(new Error('permission denied'))
     await expect(controller.initializeDefault(new AbortController().signal))
       .rejects.toThrow('permission denied')
+  })
+})
+
+describe('user access policy', () => {
+  /** One logged-in user; the subject id alone distinguishes these owners. */
+  const login = (subjectId: string): UserPrincipal => {
+    const principal = userPrincipal({ providerId: 'oidc', tenantId: 'tenant-a', subjectId, displayName: subjectId })
+    if (principal === undefined) throw new Error(`unreachable: ${subjectId} has an empty identity`)
+    return principal
+  }
+
+  it('confines a user to the Sessions of the Workspaces it owns', async () => {
+    const { ctx, root } = await harness()
+    const alice = login('alice')
+    const bob = login('bob')
+    // Ownership is stamped when the registry creates a record for a caller, so each
+    // Workspace is created through a Context speaking for its user.
+    const aliceWorkspace = await peerContext(ctx, alice, 'create').workspaceRegistry.create(stageDir(root, 'alice'))
+    const bobWorkspace = await peerContext(ctx, bob, 'create').workspaceRegistry.create(stageDir(root, 'bob'))
+    const aliceSession = ctx.sessions.create(SessionId('alice-session'), { meta: { cwd: aliceWorkspace.path } })
+    const bobSession = ctx.sessions.create(SessionId('bob-session'), { meta: { cwd: bobWorkspace.path } })
+    await aliceWorkspace.attachSession(aliceSession.id)
+    await bobWorkspace.attachSession(bobSession.id)
+
+    // The policy reads the registry index keyed by the caller's canonical user key.
+    expect(ctx.workspaceRegistry.sessionsOwnedBy(String(userId(alice)))).toEqual([aliceSession.id])
+    expect(ctx.remoteAccess.decide({
+      principal: alice,
+      action: 'session/page',
+      resources: [{ kind: 'session', id: aliceSession.id }],
+    }).kind).toBe('allow')
+    expect(ctx.remoteAccess.decide({
+      principal: alice,
+      action: 'session/page',
+      resources: [{ kind: 'session', id: bobSession.id }],
+    }).kind).toBe('deny')
   })
 })

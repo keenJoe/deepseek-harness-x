@@ -4,5 +4,5 @@
  */
 
 export * from './tunnel-protocol.ts'
-export * from './identity/index.ts'
+export * from '@deepseek-ai/dsh-identity-protocol'
 export * from './viewer-carrier.ts'

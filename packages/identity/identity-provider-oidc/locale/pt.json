@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "Provedor de identidade OIDC",
+    "description": "Adiciona um login OpenID Connect configurado pela implantação: o navegador autoriza no emissor e o harness verifica o id_token retornado antes de admitir a sessão.",
+    "detail": "docs/DETAIL.md"
+  }
+}

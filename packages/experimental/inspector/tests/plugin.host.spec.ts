@@ -41,12 +41,13 @@ describe('experimental Inspector Host plugin', () => {
     const registerUpgrade = vi.fn<(_route: WebUpgradeRoute) => () => void>(() => releaseUpgrade)
     const routes: Pick<WebServer, 'register' | 'registerUpgrade'> = { register: registerRoute, registerUpgrade }
     let authenticated = false
-    const auth: Pick<BrowserAuth, 'isAuthenticated' | 'authenticateApi'> = {
+    const auth: Pick<BrowserAuth, 'isAuthenticated' | 'authenticateApi' | 'sessionId'> = {
       isAuthenticated: () => authenticated,
       authenticateApi: () => undefined,
+      sessionId: () => undefined,
     }
     context.provide('webServer', routes as WebServer)
-    const connection = new HostConnectionService(context, [], auth as BrowserAuth)
+    const connection = new HostConnectionService(context, [], auth as BrowserAuth, {} as never)
     const fiber = context.plugin(
       { name, inject: [...inject], Config, apply },
       { port: 0, captureFetch: false },
@@ -129,7 +130,7 @@ describe('experimental Inspector Host plugin', () => {
     context = new Context()
     const routes: Pick<WebServer, 'register' | 'registerUpgrade'> = { register: () => () => {}, registerUpgrade: () => () => {} }
     context.provide('webServer', routes as WebServer)
-    new HostConnectionService(context, [], {} as BrowserAuth)
+    new HostConnectionService(context, [], {} as BrowserAuth, {} as never)
     context.provide('inspector', {
       publish: () => undefined,
       cordis: { getTree: () => Promise.reject(new Error('unused test service')) },
@@ -151,7 +152,7 @@ describe('experimental Inspector Host plugin', () => {
     const routes: Pick<WebServer, 'register' | 'registerUpgrade'> = { register: () => () => {}, registerUpgrade: () => () => {} }
     context.provide('webServer', routes as WebServer)
     context.provide('cmdlineArgs', { get: () => ['--inspect'] })
-    const connection = new HostConnectionService(context, [], {} as BrowserAuth)
+    const connection = new HostConnectionService(context, [], {} as BrowserAuth, {} as never)
     vi.mocked(open).mockRejectedValueOnce(new Error('Chrome unavailable'))
     const fiber = context.plugin({ name, inject: [...inject], Config, apply }, { port: 0, captureFetch: false })
     await fiber.await()

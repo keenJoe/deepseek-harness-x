@@ -1,0 +1,45 @@
+{
+  "name": "@deepseek-ai/dsh-identity-providers",
+  "description": "Identity-provider capability seam (ctx.identityProviders): a registry of deployment-selected OIDC/SSO identity adapters for hosted multi-user login",
+  "version": "0.2.2-alpha.3",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/deepseek-ai/deepseek-harness.git",
+    "directory": "packages/identity/identity-providers"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./types": {
+      "types": "./lib/types/types.d.ts",
+      "default": "./lib/types/types.js"
+    },
+    "./src/*": "./src/*",
+    "./locale/*.json": "./locale/*.json",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "locale/*.json",
+    "lib/index.js",
+    "lib/types/**/*.js",
+    "lib/types/**/*.d.ts"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@deepseek-ai/dsh-identity-protocol": "workspace:*"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "workspace:~"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "workspace:~"
+  }
+}

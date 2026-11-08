@@ -51,6 +51,14 @@ interface Workspace {
   readonly updatedAt: string
 
   /**
+   * Canonical partition key of the logged-in user that owns this workspace,
+   * stamped at create. Absent for legacy/global records written before
+   * per-user partitioning and for the owner principal, which sees and mutates
+   * every record.
+   */
+  readonly owner?: string | undefined
+
+  /**
    * Header-validated sessions in manually owned order: a new session is
    * prepended at attach, explicit reordering goes through
    * `insertSessionBefore`, and activity never reorders. The durable candidate
@@ -578,6 +586,26 @@ pinSession(sessionId: SessionId): Promise<void>
  * @returns resolution after durability.
  */
 unpinSession(sessionId: SessionId): Promise<void>
+
+/**
+ * Workspaces owned by one user key, in durable registry order. A global-scope
+ * read: it answers for an explicit key instead of the current caller, which is
+ * what the Remote access policy needs to bind a non-owner Peer's own ids.
+ * @param userKey - canonical user key stamped on that user's records.
+ * @returns the owned Workspace ids; empty when the key owns none.
+ */
+workspacesOwnedBy(userKey: string): readonly WorkspaceId[]
+
+/**
+ * Sessions accounted by the workspaces one user key owns, in durable registry
+ * order and each workspace's own session order. A session is accounted by at
+ * most one workspace (the one-owner accounting invariant), so ids never repeat.
+ * A global-scope read for the same reason as {@link workspacesOwnedBy}.
+ * @param userKey - canonical user key stamped on the accounting workspaces.
+ * @returns the owned Session ids; empty when the key owns no workspace or none
+ * accounts a session.
+ */
+sessionsOwnedBy(userKey: string): readonly SessionId[]
 
 /**
  * Resolve by canonical directory path without creating or mutating a

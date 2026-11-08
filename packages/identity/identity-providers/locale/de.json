@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Identitätsanbieter",
+    "description": "Registriert die Identitätsadapter der Bereitstellung und löst den auf, den ein gehosteter Login auswählt."
+  }
+}

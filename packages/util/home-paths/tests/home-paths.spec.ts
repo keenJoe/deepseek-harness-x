@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readdir, realpath, rm, symlink, writeFile } from 'node:fs/promises'
 import { homedir, tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -7,6 +7,7 @@ import {
   DEFAULT_AGENTS_HOME_DISPLAY,
   DEFAULT_DSH_HOME_DISPLAY,
   DSH_HOME_DIR_NAME,
+  USERS_DIR_NAME,
   agentsHomeDisplay,
   canonicalizeWatchPath,
   defaultAgentsHome,
@@ -16,7 +17,9 @@ import {
   dshHomePath,
   expandHomePath,
   resolveAgentsHome,
+  migrateLegacyRootToUser,
   resolveDshHome,
+  userHomePath,
 } from '@deepseek-ai/dsh-home-paths'
 
 afterEach(() => {
@@ -55,6 +58,19 @@ describe('dsh path helpers', () => {
     vi.stubEnv('DSH_HOME', '~/env-dsh')
     expect(dshHomePath()).toBe(join(homedir(), 'env-dsh'))
     expect(dshHomePath('storages', 'cache')).toBe(join(homedir(), 'env-dsh', 'storages', 'cache'))
+  })
+
+  it('owns the shared per-user directory name', () => {
+    expect(USERS_DIR_NAME).toBe('users')
+  })
+
+  it('joins a user key and child segments under users/<userKey>', () => {
+    vi.stubEnv('DSH_HOME', '~/env-dsh')
+    expect(userHomePath('provider%3Atenant%3Asubject')).toBe(join(homedir(), 'env-dsh', 'users', 'provider%3Atenant%3Asubject'))
+    expect(userHomePath('provider%3Atenant%3Asubject', 'sessions')).toBe(
+      join(homedir(), 'env-dsh', 'users', 'provider%3Atenant%3Asubject', 'sessions'),
+    )
+    expect(userHomePath('')).toBe(join(homedir(), 'env-dsh', 'users'))
   })
 
   it('labels a resolved home by whether it is the default root', () => {
@@ -111,6 +127,55 @@ describe('dsh path helpers', () => {
       expect(dshCachePath({}, 'attachments')).toBe(join(homedir(), 'env-dsh', 'cache', 'attachments'))
     } finally {
       vi.unstubAllEnvs()
+    }
+  })
+
+  it('moves legacy owner children into a fresh per-user root and leaves the legacy home empty', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-migrate-'))
+    const legacy = join(root, 'legacy')
+    const target = join(root, 'users', 'provider%3Atenant%3Asubject')
+    try {
+      await mkdir(join(legacy, 'sessions'), { recursive: true })
+      await writeFile(join(legacy, 'sessions', 'a.jsonl'), 'a')
+      await writeFile(join(legacy, 'storages'), 'storages')
+
+      await expect(migrateLegacyRootToUser(legacy, target)).resolves.toEqual(['sessions', 'storages'])
+      expect(await readdir(legacy)).toEqual([])
+      expect(await readdir(target)).toEqual(['sessions', 'storages'])
+      expect(await readdir(join(target, 'sessions'))).toEqual(['a.jsonl'])
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  it('refuses migration when a destination child already exists, leaving both homes intact', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-migrate-collide-'))
+    const legacy = join(root, 'legacy')
+    const target = join(root, 'target')
+    try {
+      await mkdir(legacy, { recursive: true })
+      await writeFile(join(legacy, 'sessions'), 'legacy')
+      await mkdir(target, { recursive: true })
+      await writeFile(join(target, 'sessions'), 'existing')
+
+      await expect(migrateLegacyRootToUser(legacy, target)).rejects.toThrow(/already exists/)
+      expect(await readdir(legacy)).toEqual(['sessions'])
+      expect(await readdir(target)).toEqual(['sessions'])
+      await expect(migrateLegacyRootToUser(legacy, target)).rejects.toThrow(/already exists/)
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  it('rejects a missing legacy source without creating the destination', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-migrate-missing-'))
+    const missing = join(root, 'missing')
+    const target = join(root, 'users', 'k')
+    try {
+      await expect(migrateLegacyRootToUser(missing, target)).rejects.toMatchObject({ code: 'ENOENT' })
+      await expect(readdir(target).then(() => true, () => false)).resolves.toBe(false)
+    } finally {
+      await rm(root, { recursive: true, force: true })
     }
   })
 

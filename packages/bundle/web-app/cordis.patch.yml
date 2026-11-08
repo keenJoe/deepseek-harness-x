@@ -231,6 +231,34 @@
     - id: modules
       name: '@deepseek-ai/dsh-client-modules'
 
+    # The identity-provider registry: hosted browser login resolves the adapters a
+    # deployment registered here. A composition with no adapter keeps the
+    # single-user loopback flow.
+    - id: identity-providers
+      name: '@deepseek-ai/dsh-identity-providers'
+
+    # One OpenID Connect issuer, shipped disabled: a deployment that serves
+    # several people enables this row with its own issuer, client id, and
+    # optional client secret (see apps/web/multi-user.overlay.yml), and every
+    # browser then has to sign in before it receives a Peer.
+    - id: identity-oidc
+      name: '@deepseek-ai/dsh-identity-provider-oidc'
+      disabled: true
+    # One Feishu Open Platform issuer, shipped disabled: enable it with a Feishu
+    # app id and secret so a browser signs in through the Feishu authorization page.
+    - id: identity-feishu
+      name: '@deepseek-ai/dsh-identity-provider-feishu'
+      disabled: true
+    # Multi-user routing half (shipped disabled): the entry router signs each admitted browser
+    # toward its per-user backend; the backend half verifies that signature. Both enable together
+    # with a shared forward secret and the entry's canonical user-id to port table.
+    - id: route-users
+      name: '@deepseek-ai/dsh-route-users'
+      disabled: true
+    - id: route-users-backend
+      name: '@deepseek-ai/dsh-route-users-backend'
+      disabled: true
+
     # Owns both ends of the web transport: node half binds the gateway to the
     # webserver under /api; browser half is the fetch/SSE client. Every API
     # request and upgrade passes the loopback, listener-bind, or trustedHosts

@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Provedor de identidade Feishu",
+    "description": "Adiciona um login configurável da Feishu Open Platform."
+  }
+}

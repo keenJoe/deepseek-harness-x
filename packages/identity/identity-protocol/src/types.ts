@@ -20,16 +20,30 @@ export interface IdentityActor extends IdentityTriple {
 
 /** Request facts needed to build one provider authorization redirect. */
 export interface IdentityAuthorizationRequest {
+  /** State value the login flow minted; the provider echoes it back unchanged. */
   readonly state: string
+  /** Callback URL the provider must redirect to after authorization. */
   readonly redirectUri: string
+  /** Scopes the login flow requests. */
   readonly scopes: readonly string[]
+  /** Hint for selecting one login identity; absent for a provider that needs none. */
   readonly loginHint?: string
+  /** PKCE S256 code challenge the provider redirect includes; absent for a provider that uses no PKCE. */
+  readonly codeChallenge?: string
+  /** PKCE challenge method, always S256 when a code challenge is present. */
+  readonly codeChallengeMethod?: 'S256'
 }
 
 /** Request facts needed to exchange a provider callback code. */
 export interface IdentityExchangeRequest {
+  /** Authorization code the provider issued at its callback. */
   readonly code: string
+  /** State value the login flow minted and the provider echoed back unchanged. */
+  readonly state: string
+  /** Callback URL the exchange repeats to the provider. */
   readonly redirectUri: string
+  /** PKCE S256 code verifier the login flow minted; absent for a provider that uses no PKCE. */
+  readonly codeVerifier?: string
 }
 
 /** Generic browser OAuth contract a deployment's identity adapter implements; the protocol's mock implements it for local runs. */

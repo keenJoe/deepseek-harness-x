@@ -1,0 +1,40 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/identity/identity-protocol/README.md
+/:
+  en: bc8bb7ff43d6dc98
+  zh: 85d4e2bd2e8bdc7d
+/deepseek-ai-dsh-identity-protocol:
+  en: 4a2d3fbcc41f13ff
+  zh: c0c695e3de558855
+/deepseek-ai-dsh-identity-protocol/summary:
+  en: bd1c4900c5edfdd1
+  zh: 4575664dd3d5b853
+/deepseek-ai-dsh-identity-protocol/table-of-contents:
+  en: 80b31a934611cb4a
+  zh: 05f3f7f9cb2fd881
+/deepseek-ai-dsh-identity-protocol/use-this-package:
+  en: bbff250eba0f1b89
+  zh: 0a618f05cc88ee2b
+/deepseek-ai-dsh-identity-protocol/use-this-package/when-to-use-it:
+  en: 95f5b7fda81eed77
+  zh: 76b07aed7f5878b1
+/deepseek-ai-dsh-identity-protocol/use-this-package/entry-point:
+  en: 9406fcc6537c0458
+  zh: d15bb8d7070c2191
+/deepseek-ai-dsh-identity-protocol/understand-the-implementation:
+  en: 8cb4bccf4c1a2914
+  zh: 43d98aed9cbc3d96
+/deepseek-ai-dsh-identity-protocol/understand-the-implementation/why-it-stays-dependency-free:
+  en: 14a25bca77e36e76
+  zh: 12d00442ec1f6901
+/deepseek-ai-dsh-identity-protocol/further-exploration:
+  en: cef45bce63212b52
+  zh: 21a60b9ba52870ca
+/deepseek-ai-dsh-identity-protocol/known-limitations-and-deferred-work:
+  en: f5cc7f75cf0a2651
+  zh: 6a842d70919345e9
+/deepseek-ai-dsh-identity-protocol/dev-note:
+  en: 5de1d6304e00c58f
+  zh: 8d8225361cfa29e5

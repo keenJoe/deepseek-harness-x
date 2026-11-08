@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "Fournisseur d'identité OIDC",
+    "description": "Ajoute une connexion OpenID Connect configurée par le déploiement : le navigateur s'autorise auprès de l'émetteur, et le harnais vérifie l'id_token renvoyé avant d'admettre la session.",
+    "detail": "docs/DETAIL.md"
+  }
+}

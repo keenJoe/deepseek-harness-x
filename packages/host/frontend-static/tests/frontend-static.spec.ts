@@ -17,6 +17,9 @@ import Include from '@deepseek-ai/cordis-plugin-include'
 import * as Connection from '@deepseek-ai/dsh-client-connection'
 import LocalCredentials from '@deepseek-ai/dsh-credentials-local'
 import HttpServer from '@deepseek-ai/dsh-host-webserver'
+import Storage from '@deepseek-ai/dsh-storage'
+import * as StorageDomain from '@deepseek-ai/dsh-storage-domain'
+import * as StorageJson from '@deepseek-ai/dsh-storage-json'
 import * as FrontendStatic from '../src/index.ts'
 
 let root: string | undefined
@@ -52,6 +55,14 @@ async function loadComposition(): Promise<Context> {
     '  config:',
     "    host: '127.0.0.1'",
     '    port: 0',
+    // Connection opens its durable browser-session domain through this stack.
+    "- name: '@deepseek-ai/dsh-storage'",
+    "- name: '@deepseek-ai/dsh-storage-json'",
+    '  config:',
+    `    root: '${join(root, 'storages')}'`,
+    "- name: '@deepseek-ai/dsh-storage-domain'",
+    '  config:',
+    '    backend: json',
     "- name: '@deepseek-ai/dsh-client-connection'",
     '- id: frontend',
     "  name: '@deepseek-ai/dsh-host-frontend-static'",
@@ -66,6 +77,9 @@ async function loadComposition(): Promise<Context> {
   context.loader.builtins.include = Include
   const modules = new Map<string, unknown>([
     ['@deepseek-ai/dsh-credentials-local', LocalCredentials],
+    ['@deepseek-ai/dsh-storage', Storage],
+    ['@deepseek-ai/dsh-storage-domain', StorageDomain],
+    ['@deepseek-ai/dsh-storage-json', StorageJson],
     ['@deepseek-ai/dsh-host-webserver', HttpServer],
     ['@deepseek-ai/dsh-client-connection', Connection],
     ['@deepseek-ai/dsh-host-frontend-static', FrontendStatic],

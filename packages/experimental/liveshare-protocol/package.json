@@ -23,13 +23,15 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "@deepseek-ai/dsh-brand": "workspace:*"
+    "@deepseek-ai/dsh-brand": "workspace:*",
+    "@deepseek-ai/dsh-identity-protocol": "workspace:*"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "workspace:~"
   },
   "devDependencies": {
-    "@deepseek-ai/cordis": "workspace:~"
+    "@deepseek-ai/cordis": "workspace:~",
+    "@deepseek-ai/dsh-identity-protocol": "workspace:*"
   },
   "publishConfig": {
     "access": "public"

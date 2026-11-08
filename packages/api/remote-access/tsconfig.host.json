@@ -8,11 +8,27 @@
   "files": [
     "src/index.ts",
     "src/snapshot.ts",
-    "src/types.ts"
+    "src/types.ts",
+    "src/user-policy.ts"
   ],
   "references": [
-    { "path": "../../../vendor/cordis" },
-    { "path": "../../host/webserver" },
-    { "path": "../../typert/protocol" }
+    {
+      "path": "../../../vendor/cordis"
+    },
+    {
+      "path": "../../host/webserver"
+    },
+    {
+      "path": "../../typert/protocol"
+    },
+    {
+      "path": "../../core/session"
+    },
+    {
+      "path": "../../workspace/workspace"
+    },
+    {
+      "path": "../../identity/user-principal"
+    }
   ]
 }

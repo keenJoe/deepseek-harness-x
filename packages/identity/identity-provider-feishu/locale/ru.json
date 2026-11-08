@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Провайдер идентификации Feishu",
+    "description": "Добавляет настраиваемый вход через Feishu Open Platform."
+  }
+}

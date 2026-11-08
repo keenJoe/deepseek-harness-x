@@ -2761,6 +2761,31 @@
       "doc": "docs/subsystems/forge.md",
       "symbol": "ForgeReviewResult",
       "source": "packages/experimental/forge/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/identity.md",
+      "symbol": "IdentityTriple",
+      "source": "packages/identity/identity-protocol/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/identity.md",
+      "symbol": "IdentityActor",
+      "source": "packages/identity/identity-protocol/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/identity.md",
+      "symbol": "IdentityAuthorizationRequest",
+      "source": "packages/identity/identity-protocol/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/identity.md",
+      "symbol": "IdentityExchangeRequest",
+      "source": "packages/identity/identity-protocol/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/identity.md",
+      "symbol": "IdentityProvider",
+      "source": "packages/identity/identity-protocol/src/types.ts"
     }
   ]
 }

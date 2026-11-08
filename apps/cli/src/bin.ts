@@ -47,6 +47,41 @@ export async function runCli(options: RunCliOptions = {}): Promise<void> {
       }
       break
     }
+    case 'route-users': {
+      const { runRouteUsers } = await import('./route-users.ts')
+      const controller = new AbortController()
+      const terminate = (): void => { controller.abort() }
+      process.once('SIGINT', terminate)
+      process.once('SIGTERM', terminate)
+      process.exit(await runRouteUsers({
+        profile: invocation.profile,
+        users: invocation.users,
+        usersRoot: invocation.usersRoot,
+        entryPort: invocation.entryPort,
+        entryPatches: invocation.entryPatches,
+        userPatches: invocation.userPatches,
+        forwardSecret: invocation.forwardSecret,
+        tenant: invocation.tenant,
+        appArgs: invocation.args,
+      }, { signal: controller.signal }))
+      break
+    }
+    case 'serve-users': {
+      const { runServeUsers } = await import('./serve-users.ts')
+      const controller = new AbortController()
+      const terminate = (): void => { controller.abort() }
+      process.once('SIGINT', terminate)
+      process.once('SIGTERM', terminate)
+      process.exit(await runServeUsers({
+        profile: invocation.profile,
+        users: invocation.users,
+        usersRoot: invocation.usersRoot,
+        basePort: invocation.port,
+        patchFiles: invocation.patches,
+        appArgs: invocation.args,
+      }, { signal: controller.signal }))
+      break
+    }
     case 'plugin': {
       const { runPlugin } = await import('./plugin.ts')
       process.exit(await runPlugin(invocation.profile, invocation.args, options.packageManager))

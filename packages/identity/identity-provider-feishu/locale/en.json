@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Feishu identity provider",
+    "description": "Adds a deployment-configured Feishu Open Platform sign-in: the browser authorizes at Feishu, and the harness resolves the signed-in person before admitting the session."
+  }
+}

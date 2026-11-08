@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Multi-user router",
+    "description": "Routes each signed-in browser to its own harness backend from one entry URL."
+  }
+}

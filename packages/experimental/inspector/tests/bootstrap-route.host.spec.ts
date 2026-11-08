@@ -68,7 +68,7 @@ describe('experimental Inspector Host bootstrap route', () => {
     const registerUpgrade = vi.fn<WebServer['registerUpgrade']>(() => () => {})
     context.provide('webServer', { register, registerUpgrade } as Pick<WebServer, 'register' | 'registerUpgrade'> as WebServer)
     context.provide('cmdlineArgs', { get: () => args })
-    const connection = new HostConnectionService(context, [], {} as BrowserAuth)
+    const connection = new HostConnectionService(context, [], {} as BrowserAuth, {} as never)
     const api = connection.createSharedFetchHandler('/api')
     const messages: Message[] = []
     context.logger.exporter({ levels: { default: 3 }, export: (message) => { messages.push(message) } })

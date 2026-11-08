@@ -89,7 +89,7 @@ async function mounted(
   ctx.provide('commands', { register: () => () => {} } as never)
   if (sessionQuery !== undefined) ctx.provide('sessionQuery', sessionQuery as never)
   if (persistence !== undefined) ctx.provide('sessionPersistence', persistence as SessionPersistence)
-  const connection = new HostConnectionService(ctx, [], {} as BrowserAuth)
+  const connection = new HostConnectionService(ctx, [], {} as BrowserAuth, {} as never)
   const fiber = ctx.plugin({ inject: [...inject], apply })
   await fiber
   return {

@@ -312,6 +312,8 @@ flowchart LR
   pkg_lsp["lsp"]
   svc_lsp["ctx.lsp<br/>Language-server navigation seam"]
   pkg_tool_lsp["tool-lsp"]
+  pkg_identity_providers["identity-providers"]
+  svc_identityProviders["ctx.identityProviders<br/>Identity-provider registry"]
   pkg_cordis_host_runner["cordis-host-runner"]
   svc_dynamicCordisRunner["ctx.dynamicCordisRunner<br/>Dynamic Cordis package host runner"]
   svc_cordisInspect["ctx.cordisInspect<br/>Dynamic Cordis inspect registry"]
@@ -394,6 +396,7 @@ flowchart LR
   pkg_host_directory_picker_native --> svc_directoryPicker
   pkg_host_product_telemetry_otel --> svc_productTelemetry
   pkg_host_webserver --> svc_webServer
+  pkg_identity_providers --> svc_identityProviders
   pkg_inspector --> svc_inspector
   pkg_jobs --> svc_jobs
   pkg_jobs_local --> svc_jobs
@@ -757,6 +760,7 @@ flowchart LR
 | `ctx.workflowEngine` | `seam` | [`workflow`](../packages/workflow/workflow) | [`workflow-ptc`](../packages/workflow/workflow-ptc) | [`tool-workflow`](../packages/workflow/tool-workflow), [`tool-ralph`](../packages/experimental/tool-ralph) | - | 每个上下文使用一个引擎，与 bash 相同，且没有具名提供方注册表；通用工作流与固定 Ralph 消费方启动运行，其中的 agent() 调用通过 ctx.subagents 扇出。 |
 | `ctx.webhookRuntime` | `core` | [`webhook`](../packages/experimental/webhook) | - | [`webhook-github`](../packages/experimental/webhook-github) | - | 提供方适配器分派已认证交付；可信插件注册独立的进程本地规则，runtime 把非 null 结果转换为普通的 Workspace-backed Session，不保留交付或完成状态。 |
 | `ctx.lsp` | `seam` | [`lsp`](../packages/lsp/lsp) | [`lsp-stdio`](../packages/lsp/lsp-stdio) | [`tool-lsp`](../packages/lsp/tool-lsp) | - | 提供方注册与选择，加上恰好四种操作的标准化查询执行；该 seam 不提供协议逃生口，后端必须转换为标准化请求和结果。 |
+| `ctx.identityProviders` | `seam` | [`identity-providers`](../packages/identity/identity-providers) | - | - | - | 提供方插件为每个身份源按稳定 id 注册一个适配器；该 seam 拥有 id 到适配器注册表而非协议，托管登录流程通过选定的适配器解析浏览器回调。 |
 | `ctx.dynamicCordisRunner` | `core` | [`cordis-host-runner`](../packages/extensions/cordis-host-runner) | - | [`tool-cordis`](../packages/extensions/tool-cordis) | - | 拥有内存定义注册表、Host 半的 vm 沙箱和 request-run 往返流程；浏览器页面通过其 Remote 命名空间在线访问同一服务。 |
 | `ctx.cordisInspect` | `core` | [`cordis-host-runner`](../packages/extensions/cordis-host-runner) | - | [`tool-cordis`](../packages/extensions/tool-cordis) | - | 注册 Host inspect 提供方、镜像 Client 提供方 manifest，并通过动态 Cordis 传输路由 Client 查询。 |
 | `ctx.liveshareShares` | `service` | [`experimental-liveshare`](../packages/experimental/liveshare) | - | - | - | 以单个 Typert Remote 命名空间发布 owner 分享管理操作，供 owner 客户端面调用；每个方法都委托给同源路由原先使用的同一组操作。 |

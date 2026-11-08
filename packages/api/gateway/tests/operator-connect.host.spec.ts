@@ -13,6 +13,9 @@ import * as Connection from '@deepseek-ai/dsh-client-connection'
 import LocalCredentials from '@deepseek-ai/dsh-credentials-local'
 import WebServer from '@deepseek-ai/dsh-host-webserver'
 import * as FrontendStatic from '@deepseek-ai/dsh-host-frontend-static'
+import Storage from '@deepseek-ai/dsh-storage'
+import * as StorageDomain from '@deepseek-ai/dsh-storage-domain'
+import * as StorageJson from '@deepseek-ai/dsh-storage-json'
 import TypertRegistry from '@deepseek-ai/dsh-typert-registry'
 import TypertGateway from '@deepseek-ai/dsh-api-gateway'
 import RemoteAccess from '@deepseek-ai/dsh-api-remote-access'
@@ -211,6 +214,9 @@ async function boot(): Promise<Host> {
   const rows = [
     { name: '@deepseek-ai/dsh-credentials-local', config: { path: join(root, '.credentials.yaml'), watch: false } },
     { name: '@deepseek-ai/dsh-host-webserver', config: { host: '127.0.0.1', port: 0 } },
+    { name: '@deepseek-ai/dsh-storage' },
+    { name: '@deepseek-ai/dsh-storage-json', config: { root: join(root, 'storages') } },
+    { name: '@deepseek-ai/dsh-storage-domain', config: { backend: 'json' } },
     { name: '@deepseek-ai/dsh-client-connection' },
     { name: '@deepseek-ai/dsh-host-frontend-static', config: { distIndex } },
     { name: '@deepseek-ai/dsh-typert-registry' },
@@ -229,6 +235,9 @@ async function boot(): Promise<Host> {
       '@deepseek-ai/dsh-host-webserver': WebServer,
       '@deepseek-ai/dsh-client-connection': Connection,
       '@deepseek-ai/dsh-host-frontend-static': FrontendStatic,
+      '@deepseek-ai/dsh-storage': Storage,
+      '@deepseek-ai/dsh-storage-domain': StorageDomain,
+      '@deepseek-ai/dsh-storage-json': StorageJson,
       '@deepseek-ai/dsh-typert-registry': TypertRegistry,
       '@deepseek-ai/dsh-api-remote-access': RemoteAccess,
       '@deepseek-ai/dsh-api-gateway': TypertGateway,

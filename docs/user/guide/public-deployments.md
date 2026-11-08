@@ -34,4 +34,21 @@ To terminate on the listener, pass `--tls-cert` and `--tls-key`, each a path res
 
 The printed URL carries a process credential, so share it only with intended users.
 
+## Serve several people
+
+A `dsh` process owns one harness home and serves one caller identity: the browser it admits is the operator of that home. Isolation therefore comes from the filesystem, not from a setting — run **one process per person**, each with its own `DSH_HOME` and its own port. `dsh serve-users` does that in one command:
+
+```sh
+dsh serve-users --profile web --users alice,bob \
+  --patch apps/cli/config/examples/multi-user-oidc.yml
+```
+
+It creates `$DSH_HOME/users/alice` and `$DSH_HOME/users/bob`, boots one Web instance per key on consecutive ports from `--port` (3080 by default), prints each instance URL, and stops every child when one exits or the launcher receives SIGINT or SIGTERM. A deployment that manages homes itself passes `--users-root` and launches each instance directly with `DSH_HOME` set.
+
+Every durable root derives from `DSH_HOME`, so each instance writes its own `sessions`, `storages`, `attachments`, credentials, and settings under its own directory; nothing needs partitioning inside the process, and a tool one person runs cannot read the other home. Put a reverse proxy in front and route each person to their instance — a subdomain per person is the simplest mapping, since cookies, paths, and upgrades then behave exactly as this guide describes for one deployment.
+
+The [multi-user OIDC overlay](../../../apps/cli/config/examples/multi-user-oidc.yml) makes each instance require a login, so the identity provider decides who may use that instance instead of the proxy alone. A deployment that authenticates at the proxy can leave the overlay out and keep every listener loopback-only; either way, never start two people against one `DSH_HOME`.
+
+Use a stable per-person directory name, such as the identity provider subject or the person's shared directory name, so a returning user maps back to the same home. Back up and move each home as one unit, and never merge two homes into one: the harness writes caller-owned state through the same paths for every admitted browser.
+
 The [Web app reference](../../../packages/bundle/web-app/README.md#public-deployments) documents the `--public-url`, `--trusted-host`, and `--tls-cert`/`--tls-key` command-line options. In the Web profile, `publicUrl` configures the `web-runtime` row, `trustedHosts` configures the [Connection row](../../../packages/client/connection/README.md), and `tls` configures the [webserver row](../../../docs/subsystems/web-server.md#config).

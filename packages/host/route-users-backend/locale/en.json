@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Multi-user backend trust",
+    "description": "Verifies the entry-signed caller header so a per-user backend admits entry-authenticated requests."
+  }
+}

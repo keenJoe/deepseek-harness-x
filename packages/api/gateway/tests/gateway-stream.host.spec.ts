@@ -29,7 +29,7 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
     'fixture/broken': { readonly count: bigint }
   }
 }
-import { browserCookie, provideBrowserCredentials } from './browser-credentials.ts'
+import { browserCookie, provideBrowserCredentials, provideBrowserSessionDomain } from './browser-credentials.ts'
 import TypertGatewayService, {
   TypertGatewayError,
   type Config as GatewayConfig,
@@ -1664,6 +1664,7 @@ async function setup(
   if (transport) {
     await ctx.plugin(WebServer, { host: '127.0.0.1', port: 0 })
     provideBrowserCredentials(ctx)
+    provideBrowserSessionDomain(ctx)
   }
   await ctx.plugin(TypertRegistry)
   await ctx.plugin(RemoteAccessService)

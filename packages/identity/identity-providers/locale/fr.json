@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Fournisseurs d'identité",
+    "description": "Enregistre les adaptateurs d’identité du déploiement et résout celui que sélectionne une connexion hébergée."
+  }
+}

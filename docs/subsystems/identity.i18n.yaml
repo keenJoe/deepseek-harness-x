@@ -1,0 +1,16 @@
+# Bilingual-pair consistency record for identity.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write docs/subsystems/identity.md
+/identity:
+  en: e0316dbced662fe8
+  zh: 720fbc7713cca4db
+/identity/adapter-contract:
+  en: 2e8841fc39fc5a7e
+  zh: d3952356bbabde31
+/identity/registration-and-selection:
+  en: a5b7eff192197fff
+  zh: 772062a1e83b0bad
+/identity/registration-and-selection/enabling-hosted-login:
+  en: d3629395c255284e
+  zh: 00c26a38137305b3

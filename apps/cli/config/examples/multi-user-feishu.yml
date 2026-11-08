@@ -1,0 +1,14 @@
+# Enable hosted multi-user login through the Feishu Open Platform (`dsh web --patch`).
+#
+#   export DSH_FEISHU_APP_ID=cli_xxxxxxxx
+#   export DSH_FEISHU_APP_SECRET=your-app-secret
+#   pnpm dsh web --patch apps/cli/config/examples/multi-user-feishu.yml
+#
+# The Feishu console must grant the app `contact:user.base:readonly` and register the
+# redirect URI of the served origin. Each signed-in person keys on their Feishu open_id.
+- id: identity-feishu
+  disabled: false
+  config:
+    id: !!js (process.env.DSH_FEISHU_PROVIDER_ID ?? 'feishu')
+    appId: !!js process.env.DSH_FEISHU_APP_ID
+    appSecret: !!js process.env.DSH_FEISHU_APP_SECRET

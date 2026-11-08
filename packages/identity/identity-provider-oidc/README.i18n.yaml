@@ -1,0 +1,55 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/identity/identity-provider-oidc/README.md
+/:
+  en: 4b0962e92ef9a4ff
+  zh: 2936085477057c63
+/deepseek-ai-dsh-identity-provider-oidc:
+  en: f738b79174120155
+  zh: 51ab41d85876ca06
+/deepseek-ai-dsh-identity-provider-oidc/summary:
+  en: 9817639d3b0798dd
+  zh: e0770f4573adc841
+/deepseek-ai-dsh-identity-provider-oidc/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: 09388d293f9be9cb
+/deepseek-ai-dsh-identity-provider-oidc/use-this-package:
+  en: bbff250eba0f1b89
+  zh: 0a618f05cc88ee2b
+/deepseek-ai-dsh-identity-provider-oidc/use-this-package/enable-the-row:
+  en: e45950f57faf1b67
+  zh: f68e8030b79fba0a
+/deepseek-ai-dsh-identity-provider-oidc/use-this-package/config:
+  en: 0bd0007c018fe821
+  zh: 4d0c6b0df1e90132
+/deepseek-ai-dsh-identity-provider-oidc/use-this-package/browser-login:
+  en: 8495309aa95f296c
+  zh: dde1eaae450a57a4
+/deepseek-ai-dsh-identity-provider-oidc/understand-the-implementation:
+  en: 22b02ad06862ac0d
+  zh: 3686fef1a59c0b47
+/deepseek-ai-dsh-identity-provider-oidc/further-exploration:
+  en: 8c3dadc53bfe74d9
+  zh: 439192ec3ae6d068
+/deepseek-ai-dsh-identity-provider-oidc/model-experience:
+  en: 215e7ba838619b7b
+  zh: a311da3843709f90
+/deepseek-ai-dsh-identity-provider-oidc/model-experience/browser-sign-in:
+  en: 5bec27874497db77
+  zh: d100ef1895bd07b6
+/deepseek-ai-dsh-identity-provider-oidc/model-experience/browser-sign-in/what-the-model-sees:
+  en: 91467f61bd26ec1e
+  zh: 6063ce0979ff5d34
+/deepseek-ai-dsh-identity-provider-oidc/model-experience/browser-sign-in/token-effect:
+  en: 607e409ef30a9977
+  zh: 15b741c32e459ff4
+/deepseek-ai-dsh-identity-provider-oidc/model-experience/browser-sign-in/kv-cache-effect:
+  en: e37f982802702a7d
+  zh: 9db0a88ee81ec8b9
+/deepseek-ai-dsh-identity-provider-oidc/known-limitations-and-deferred-work:
+  en: 4cb5f8cdfac80fbf
+  zh: 42a34ca9dcdfcf49
+/deepseek-ai-dsh-identity-provider-oidc/known-limitations-and-deferred-work/dev-note:
+  en: e67f633dc6fe7773
+  zh: 3bb0c20c93f16f98

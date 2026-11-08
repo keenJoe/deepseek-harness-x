@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Identity providers",
+    "description": "Register the deployment's identity adapters and resolve the one a hosted login selects."
+  }
+}

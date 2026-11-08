@@ -1,6 +1,6 @@
 import { createUserMessage, createMessage } from '@deepseek-ai/dsh-llm'
 import type { ContextFormed, MessageSource } from '@deepseek-ai/dsh-llm'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Context, type Fiber } from '@deepseek-ai/cordis'
 import SessionStore, { SessionLogOffset, SessionSeq, SESSION_FORMAT_VERSION, SessionId } from '@deepseek-ai/dsh-session'
 import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
@@ -25,6 +25,12 @@ import SessionQueryEngine, {
 } from '@deepseek-ai/dsh-session-query'
 import { SessionTitleProviderId, SessionTitleService } from '@deepseek-ai/dsh-session-title'
 import { TestSessionQueryEngine } from './test-service.ts'
+import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { userHomePath } from '@deepseek-ai/dsh-home-paths'
+import { userId, userPrincipal, type UserPrincipal } from '@deepseek-ai/dsh-user-principal'
+import type { PeerId, Principal, RemoteInvocation } from '@deepseek-ai/dsh-typert-protocol'
 
 declare module '@deepseek-ai/dsh-llm' {
   interface MessageSourceMap {
@@ -113,8 +119,15 @@ function entryRevision(entry: { events: SessionEvent[] }): SessionPersistenceRev
   return SessionPersistenceRevision(`events:${entry.events.length}`)
 }
 
+interface TestPersistenceEntry {
+  meta: SessionHeader
+  events: SessionEvent[]
+  /** Materialized artifact location, consumed by per-user corpus scoping. */
+  location?: string
+}
+
 class TestPersistence extends SessionPersistence {
-  static entries = new Map<SessionIdType, { meta: SessionHeader; events: SessionEvent[] }>()
+  static entries = new Map<SessionIdType, TestPersistenceEntry>()
   static listFailure: unknown
   static listOverride: ((signal?: AbortSignal) => Promise<SessionPersistenceSnapshot[]>) | undefined
   static readFailure: unknown
@@ -129,7 +142,7 @@ class TestPersistence extends SessionPersistence {
   static listSignals: Array<AbortSignal | undefined> = []
   static readSignals: Array<AbortSignal | undefined> = []
 
-  static reset(entries: readonly { meta: SessionHeader; events: SessionEvent[] }[] = []): void {
+  static reset(entries: readonly TestPersistenceEntry[] = []): void {
     this.entries = new Map(entries.map(entry => [entry.meta.id, structuredClone(entry)]))
     this.listFailure = undefined
     this.listOverride = undefined
@@ -171,6 +184,7 @@ class TestPersistence extends SessionPersistence {
     const snapshots = [...TestPersistence.entries.values()].map(entry => ({
       header: structuredClone(entry.meta),
       revision: entryRevision(entry),
+      ...(entry.location === undefined ? {} : { location: { kind: 'jsonl', path: entry.location } }),
     }))
     TestPersistence.afterList?.()
     return Promise.resolve(snapshots)
@@ -1331,4 +1345,134 @@ describe('session-query exact reads', () => {
     await disposing
     await persistence.dispose()
   })
+
+})
+
+/**
+ * Per-user corpus scoping: a `user` principal reads only its own persisted root,
+ * while the owner and trusted in-process code keep the global live-preferred corpus.
+ */
+describe('session-query per-user partitioning', () => {
+  /**
+   * Build the principal one triple names.
+   * @param triple - provider, tenant, subject, and display name of the caller.
+   * @returns the user principal those fields identify.
+   */
+  function userIdentity(triple: {
+    readonly providerId: string
+    readonly tenantId: string
+    readonly subjectId: string
+    readonly displayName: string
+  }): UserPrincipal {
+    const principal = userPrincipal(triple)
+    if (principal === undefined) throw new Error('unreachable: the fixture triple carries an empty identity')
+    return principal
+  }
+
+  const USER = userIdentity({
+    providerId: 'provider',
+    tenantId: 'tenant',
+    subjectId: 'subject',
+    displayName: 'Alice',
+  })
+  const OTHER = userIdentity({
+    providerId: 'provider',
+    tenantId: 'tenant',
+    subjectId: 'other',
+    displayName: 'Bob',
+  })
+
+  let homeDir: string
+  let userRoot: string
+  let otherRoot: string
+
+  beforeEach(async () => {
+    homeDir = await mkdtemp(join(tmpdir(), 'dsh-session-query-user-'))
+    vi.stubEnv('DSH_HOME', homeDir)
+    userRoot = userHomePath(String(userId(USER)))
+    otherRoot = userHomePath(String(userId(OTHER)))
+  })
+
+  afterEach(async () => {
+    vi.unstubAllEnvs()
+    await rm(homeDir, { recursive: true, force: true })
+  })
+
+  /** Mount persistence beside the engine and hand back the owner context. */
+  async function ownerContext(): Promise<Context> {
+    const ctx = await liveContext()
+    await ctx.plugin(TestPersistence)
+    return ctx
+  }
+
+  it('lists only the persisted records under the caller root and excludes live sessions', async () => {
+    TestPersistence.reset([
+      { meta: header('mine', 3), events: eventLog(), location: join(userRoot, 'sessions', 'mine.jsonl') },
+      { meta: header('theirs', 2), events: eventLog(), location: join(otherRoot, 'sessions', 'theirs.jsonl') },
+    ])
+    const ctx = await ownerContext()
+    ctx.sessions.create(SessionId('live'))
+
+    const listed = await asPrincipal(ctx, USER).listSessions()
+
+    expect(listed.map(record => record.header.id)).toEqual([SessionId('mine')])
+    await ctx.fiber.dispose()
+  })
+
+  it('reads the caller own persisted session and refuses another caller session', async () => {
+    TestPersistence.reset([
+      { meta: header('mine', 3), events: eventLog(), location: join(userRoot, 'sessions', 'mine.jsonl') },
+      { meta: header('theirs', 2), events: eventLog(), location: join(otherRoot, 'sessions', 'theirs.jsonl') },
+    ])
+    const ctx = await ownerContext()
+
+    await expect(asPrincipal(ctx, USER).readSession(SessionId('mine'))).resolves.toMatchObject({ session: { id: SessionId('mine') } })
+    await expect(asPrincipal(ctx, USER).readSession(SessionId('theirs')))
+      .rejects.toMatchObject({ code: 'SESSION_QUERY_SESSION_NOT_FOUND' })
+    await ctx.fiber.dispose()
+  })
+
+  it('treats a sibling directory sharing the caller root prefix as another caller', async () => {
+    TestPersistence.reset([
+      { meta: header('sibling'), events: eventLog(), location: join(`${userRoot}-spare`, 'sessions', 'sibling.jsonl') },
+    ])
+    const ctx = await ownerContext()
+
+    await expect(asPrincipal(ctx, USER).listSessions()).resolves.toEqual([])
+    await ctx.fiber.dispose()
+  })
+
+  it('keeps the global live-preferred corpus for the owner', async () => {
+    TestPersistence.reset([
+      { meta: header('durable', 2), events: eventLog(), location: join(userRoot, 'sessions', 'durable.jsonl') },
+    ])
+    const ctx = await ownerContext()
+    ctx.sessions.create(SessionId('live'))
+
+    const listed = await ctx.sessionQuery.listSessions()
+
+    expect(listed.map(record => record.header.id)).toEqual([SessionId('live'), SessionId('durable')])
+    await ctx.fiber.dispose()
+  })
+
+  /** Build a scoped view of the same engine speaking for one caller principal. */
+  function asPrincipal(ctx: Context, principal: Principal): SessionQueryEngine {
+    const invocation: RemoteInvocation = {
+      request: { namespace: 'sessionQuery', method: 'listSessions', args: {} },
+      service: 'sessionQuery',
+      peer: {
+        id: 'session-query-scope-peer' as PeerId,
+        ctx,
+        principal,
+        interactions: 'answer',
+        signal: new AbortController().signal,
+        dispose: async () => {},
+      },
+      signal: new AbortController().signal,
+      uplink: <In>(): AsyncIterable<In> => ({
+        [Symbol.asyncIterator]: () => ({ next: async () => ({ done: true, value: undefined }) }),
+      }),
+    }
+    return ctx.extend({ invocation }).sessionQuery
+  }
 })

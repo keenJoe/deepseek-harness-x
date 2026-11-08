@@ -16,6 +16,7 @@
 | `dsh --profile sdk-minimal` | 以独立极简 agent（智能体）配置树为 SDK 客户端提供服务。 |
 | `dsh web` | 启动 Web profile。 |
 | `dsh plugin --profile <name> <pnpm args>` | 通过在 profile 目录中转发给 pnpm 来管理该 profile 的插件。 |
+| `dsh serve-users --profile <name> --users <keys>` | 为每个人各运行一个实例，各自使用自己的 `$DSH_HOME/users/<key>` home 与端口，并一起停止。 |
 
 运行命令时所在的目录将作为默认 workspace 根目录。`web`、`headless`、`sdk`、`sdk-minimal` 和 `acp` profile 在首次使用时会从随附模板自动初始化。使用 `--from-default-profile` 可以基于这些模板之一，在非内置名称处创建或重置其他 profile；通过 `dsh plugin` 则可以初始化一个以 base 为基础的 profile。`desktop` 名称保留给 Electron 持有的 profile，因此 CLI（命令行界面）会拒绝针对它的启动和配置 dump 请求。npm CLI 也会拒绝其插件管理请求；[Desktop 内置命令](../desktop/README.zh.md#bundled-command-runtime)可以使用该安装的运行时管理已初始化的 Desktop profile。
 
@@ -51,7 +52,7 @@ profile 目录包含一个 `package.json`，其中记录树外插件依赖，以
 
 ## 可选覆盖层
 
-`config/examples/` 交付 GitHub 评审 webhook、记忆 MCP 服务器与运行时 Cordis 工具的可选覆盖层。它们绝不属于默认 profile；设置与安全说明由[用户指南](../../docs/user/guide/index.zh.md)和[开发实战指南](../../docs/user/develop/practice/index.zh.md)负责。
+`config/examples/` 交付 GitHub 评审 webhook、记忆 MCP 服务器、运行时 Cordis 工具与托管多用户登录的可选覆盖层。它们绝不属于默认 profile；设置与安全说明由[用户指南](../../docs/user/guide/index.zh.md)和[开发实战指南](../../docs/user/develop/practice/index.zh.md)负责。
 
 ## 开发
 

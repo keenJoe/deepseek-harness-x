@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Provedores de identidade",
+    "description": "Registra os adaptadores de identidade da implantação e resolve o que um login hospedado seleciona."
+  }
+}

@@ -344,6 +344,9 @@ flowchart TD
   end
   subgraph group_identity["packages/identity"]
     pkg_anonymous_user_id["anonymous-user-id"]
+    pkg_identity_protocol["identity-protocol"]
+    pkg_identity_providers["identity-providers"]
+    pkg_user_principal["user-principal"]
   end
   subgraph group_interaction["packages/interaction"]
     pkg_commands["commands"]
@@ -1650,6 +1653,9 @@ flowchart TD
 | [`host-directory-picker-native`](../packages/host/directory-picker-native) | `host` | — |
 | [`host-open-in-app`](../packages/host/open-in-app) | `host` | — |
 | [`host-webserver`](../packages/host/webserver) | `host` | — |
+| [`identity-protocol`](../packages/identity/identity-protocol) | `identity` | — |
+| [`identity-providers`](../packages/identity/identity-providers) | `identity` | — |
+| [`user-principal`](../packages/identity/user-principal) | `identity` | — |
 | [`message-quotes`](../packages/session/message-quotes) | `session` | — |
 | [`session-format`](../packages/session/session-format) | `session` | — |
 | [`session-format-v0-to-v1`](../packages/session/session-format-v0-to-v1) | `session` | — |

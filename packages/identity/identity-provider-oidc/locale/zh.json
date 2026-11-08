@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "OIDC 身份提供方",
+    "description": "添加由部署配置的 OpenID Connect 登录：浏览器在 issuer 完成授权，harness 校验返回的 id_token 后才接入会话。",
+    "detail": "docs/DETAIL.zh.md"
+  }
+}

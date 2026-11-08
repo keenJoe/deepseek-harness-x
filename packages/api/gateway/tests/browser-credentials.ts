@@ -42,3 +42,41 @@ export function browserCookie(ctx: Context): string {
   browserCookies.set(ctx, cookie)
   return cookie
 }
+
+/**
+ * Provide an in-memory `storageDomain` for a mounted Connection plugin: its browser-session
+ * records live in this table, and a test reads them back through it.
+ * @param ctx - the root that mounts Connection.
+ */
+export function provideBrowserSessionDomain(ctx: Context): void {
+  ctx.provide('storageDomain', {
+    async open(): Promise<unknown> {
+      const tables = new Map<string, Map<string, unknown>>()
+      return {
+        close: async (): Promise<void> => {},
+        table(name: string) {
+          const store = tables.get(name) ?? new Map<string, unknown>()
+          tables.set(name, store)
+          return {
+            get: (key: string): unknown => store.get(key),
+            entries: (): IterableIterator<[string, unknown]> => store.entries(),
+            keys: (): IterableIterator<string> => store.keys(),
+            get size(): number { return store.size },
+            put: async (key: string, value: unknown): Promise<void> => { store.set(key, value) },
+            delete: async (key: string): Promise<boolean> => store.delete(key),
+            deleteMany: async (keys: readonly string[]): Promise<number> => {
+              let removed = 0
+              for (const key of keys) if (store.delete(key)) removed += 1
+              return removed
+            },
+            update: async (key: string, next: (current: unknown) => unknown): Promise<unknown> => {
+              const value = next(store.get(key))
+              store.set(key, value)
+              return value
+            },
+          }
+        },
+      }
+    },
+  } as never)
+}

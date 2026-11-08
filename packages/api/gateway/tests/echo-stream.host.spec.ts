@@ -8,7 +8,7 @@ import { Remote, TypertRemoteService, type RemoteStream } from '@deepseek-ai/dsh
 import TypertRegistry from '@deepseek-ai/dsh-typert-registry'
 import TypertGatewayService from '@deepseek-ai/dsh-api-gateway'
 import RemoteAccessService from '@deepseek-ai/dsh-api-remote-access'
-import { browserCookie, provideBrowserCredentials } from './browser-credentials.ts'
+import { browserCookie, provideBrowserCredentials, provideBrowserSessionDomain } from './browser-credentials.ts'
 import { ownerPeer } from './peer.ts'
 
 /** The smallest Remote stream that reads its uplink: every carrier has to serve it alike. */
@@ -74,6 +74,7 @@ async function setup(transport: boolean): Promise<Context> {
   if (transport) {
     await ctx.plugin(WebServer, { host: '127.0.0.1', port: 0 })
     provideBrowserCredentials(ctx)
+    provideBrowserSessionDomain(ctx)
   }
   await ctx.plugin(TypertRegistry)
   await ctx.plugin(RemoteAccessService)

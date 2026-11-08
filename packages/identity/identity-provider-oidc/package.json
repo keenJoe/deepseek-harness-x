@@ -1,0 +1,61 @@
+{
+  "name": "@deepseek-ai/dsh-identity-provider-oidc",
+  "description": "OpenID Connect identity provider: discovers one issuer's endpoints and exchanges an authorization code for a verified id_token",
+  "version": "0.2.2-alpha.3",
+  "icon": "./icon.svg",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/deepseek-ai/deepseek-harness.git",
+    "directory": "packages/identity/identity-provider-oidc"
+  },
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./locale/*.json": "./locale/*.json",
+    "./src/*": "./src/*",
+    "./package.json": "./package.json",
+    "./cordis.patch.yml": "./cordis.patch.yml"
+  },
+  "files": [
+    "icon.svg",
+    "locale/*.json",
+    "docs",
+    "lib/index.js",
+    "cordis.patch.yml",
+    "lib/types/**/*.d.ts"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@deepseek-ai/dsh-identity-protocol": "workspace:*",
+    "@deepseek-ai/schemastery": "workspace:~"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "workspace:~",
+    "@deepseek-ai/dsh-identity-providers": "workspace:*"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "workspace:~",
+    "@deepseek-ai/cordis-plugin-include": "workspace:*",
+    "@deepseek-ai/cordis-plugin-loader": "workspace:*",
+    "@deepseek-ai/dsh-client-connection": "workspace:*",
+    "@deepseek-ai/dsh-credentials-local": "workspace:*",
+    "@deepseek-ai/dsh-host-webserver": "workspace:*",
+    "@deepseek-ai/dsh-identity-providers": "workspace:*",
+    "@deepseek-ai/dsh-storage": "workspace:*",
+    "@deepseek-ai/dsh-storage-domain": "workspace:*",
+    "@deepseek-ai/dsh-storage-json": "workspace:*"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}

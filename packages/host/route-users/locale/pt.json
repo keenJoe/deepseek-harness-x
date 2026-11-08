@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Roteador multiusuário",
+    "description": "Roteia cada navegador conectado ao seu próprio backend a partir de uma URL de entrada."
+  }
+}

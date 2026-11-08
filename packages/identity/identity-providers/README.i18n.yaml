@@ -1,0 +1,55 @@
+# Bilingual-pair consistency record for README.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write packages/identity/identity-providers/README.md
+/:
+  en: 6da8025742d0c4e1
+  zh: fa9ca532d6cef1ae
+/deepseek-ai-dsh-identity-providers:
+  en: a81a92a1b6de84d2
+  zh: 2c05f9d9bea753d1
+/deepseek-ai-dsh-identity-providers/summary:
+  en: 19cc8c55ef8649d7
+  zh: b06d889470b81a98
+/deepseek-ai-dsh-identity-providers/table-of-contents:
+  en: d152484eb41ac6b4
+  zh: 09388d293f9be9cb
+/deepseek-ai-dsh-identity-providers/use-this-package:
+  en: f5584f4774d4ecbd
+  zh: 5dfe3d20ed1c17a5
+/deepseek-ai-dsh-identity-providers/use-this-package/when-to-use-it:
+  en: 2458c0a1665c128e
+  zh: 18d3061116a365f8
+/deepseek-ai-dsh-identity-providers/use-this-package/registering-a-provider:
+  en: 183f6f329ad5bde4
+  zh: 233ee6159f9fcbcb
+/deepseek-ai-dsh-identity-providers/use-this-package/what-can-go-wrong:
+  en: 9caa704b4b47f655
+  zh: 02b127c79d6bde02
+/deepseek-ai-dsh-identity-providers/understand-the-implementation:
+  en: 39f5a6bae0aa6879
+  zh: 359734019460f5c3
+/deepseek-ai-dsh-identity-providers/understand-the-implementation/design-philosophy:
+  en: 7197e993104fa74e
+  zh: 0bb4f3320994f3cc
+/deepseek-ai-dsh-identity-providers/understand-the-implementation/source-map:
+  en: 9768e0195867c529
+  zh: a7caa1a5750ae773
+/deepseek-ai-dsh-identity-providers/understand-the-implementation/registration-lifecycle:
+  en: c3d517e53d12aa32
+  zh: a4f6cc128bfa3deb
+/deepseek-ai-dsh-identity-providers/further-exploration:
+  en: d84e3939a2e51a9d
+  zh: aa0d416f1f891bd1
+/deepseek-ai-dsh-identity-providers/model-experience:
+  en: 24241ba6b49545c8
+  zh: 1373efd3fda14118
+/deepseek-ai-dsh-identity-providers/model-experience/kv-cache-effect:
+  en: 03f393fd1fca4fc5
+  zh: 6fbb2f34cb23e257
+/deepseek-ai-dsh-identity-providers/known-limitations-and-deferred-work:
+  en: 8e634d4098ac5f93
+  zh: 368e7797feaf93ac
+/deepseek-ai-dsh-identity-providers/known-limitations-and-deferred-work/dev-note:
+  en: e67f633dc6fe7773
+  zh: 3bb0c20c93f16f98

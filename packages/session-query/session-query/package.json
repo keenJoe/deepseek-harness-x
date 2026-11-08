@@ -35,7 +35,8 @@
     "@deepseek-ai/dsh-session-persistence": "workspace:*",
     "@deepseek-ai/dsh-session-projection": "workspace:*",
     "@deepseek-ai/dsh-session-projection-cache": "workspace:*",
-    "@deepseek-ai/cordis": "workspace:~"
+    "@deepseek-ai/cordis": "workspace:~",
+    "@deepseek-ai/dsh-user-principal": "workspace:*"
   },
   "peerDependenciesMeta": {
     "@deepseek-ai/dsh-session-persistence": {
@@ -57,7 +58,8 @@
     "@deepseek-ai/dsh-session-persistence": "workspace:*",
     "@deepseek-ai/dsh-session-projection": "workspace:*",
     "@deepseek-ai/dsh-session-projection-cache": "workspace:*",
-    "@deepseek-ai/cordis": "workspace:~"
+    "@deepseek-ai/cordis": "workspace:~",
+    "@deepseek-ai/dsh-user-principal": "workspace:*"
   },
   "dependencies": {
     "@deepseek-ai/dsh-session-format-catalog": "workspace:*"

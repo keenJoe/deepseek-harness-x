@@ -4,6 +4,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import z from '@deepseek-ai/schemastery'
 import type {} from '@deepseek-ai/dsh-attachment'
 import type {} from '@deepseek-ai/dsh-credentials'
+import type {} from '@deepseek-ai/dsh-storage-domain'
 // Activates the webServer Context merge used below.
 import type { WebRoute } from '@deepseek-ai/dsh-host-webserver'
 import { API_PATH } from './api-path.ts'
@@ -11,10 +12,15 @@ import { CONNECT_PATH } from './connect-protocol.ts'
 import { bridge, DEFAULT_MAX_REQUEST_BODY_BYTES } from './http-bridge.ts'
 import { assertTrustedAuthority } from './api-request-trust.ts'
 import { BrowserAuth } from './browser-auth.ts'
+import type { ConnectionTrust } from './rpc.ts'
+export { createConnectionTrustContext, signForwardedUser, verifyForwardedUser, CONNECTION_TRUST_HEADER, CONNECTION_TRUST_TTL_MS } from './connection-trust.ts'
+import { LOGIN_CALLBACK_PATH, LOGIN_PATH, LOGOUT_PATH } from './login.ts'
 import { HostConnectionService } from './rpc-host.ts'
+import { browserSessionsDomainSpec } from './storage.ts'
 import { ConnectionRecoveryConfigSchema, resolveConnectionConfig, type ConnectionRecoveryConfig } from './recovery-config.ts'
 
 export type {
+  ConnectionTrust,
   PeerAdmission,
   ConnectionAdmission,
   ConnectionFetchMethod,
@@ -55,10 +61,19 @@ export { HostConnectionService } from './rpc-host.ts'
 
 export { API_PATH } from './api-path.ts'
 
+export { LOGIN_CALLBACK_PATH, LOGIN_PATH, LOGOUT_PATH, PENDING_LOGIN_LIFETIME_MILLISECONDS, PendingLogins } from './login.ts'
+export { browserSessionRecordSchema, browserSessionsDomainSpec } from './storage.ts'
+export type { BrowserSessionId, BrowserSessionRecord } from './storage.ts'
+
 /** Stable Cordis plugin name. */
 export const name = 'client-connection'
 
 declare module '@deepseek-ai/cordis' {
+  interface Context {
+    /** Optional trusted-forwarder admission; a backend mounts it to accept entry-authenticated requests. */
+    connectionTrust?: ConnectionTrust
+  }
+
   interface Events {
     /**
      * Admit or wrap an authenticated shared API request, including body transfer.
@@ -90,7 +105,7 @@ function assertImageBodyCapacity(ctx: Context, maxRequestBodyBytes: number): voi
 }
 
 /** Services required before providing Connection. */
-export const inject = ['credentials']
+export const inject = ['credentials', 'storageDomain']
 
 /** Browser authentication, request limits, and connection recovery configuration. */
 export interface ConnectionConfig {
@@ -133,11 +148,12 @@ export async function apply(ctx: Context, config?: ConnectionConfig): Promise<vo
   // silently authorizing its hostname prefix at request time.
   for (const entry of trustedHosts) assertTrustedAuthority(entry)
   assertImageBodyCapacity(ctx, maxRequestBodyBytes)
-  const connection = new HostConnectionService(
-    ctx,
-    trustedHosts,
-    await BrowserAuth.create(ctx.root, ctx.credentials, cookieMaxAgeDays),
-  )
+  const browserAuth = await BrowserAuth.create(ctx.root, ctx.credentials, cookieMaxAgeDays)
+  // The durable session store is authoritative account state: an unreadable record
+  // fails the load rather than being skipped.
+  const sessionsDomain = await ctx.storageDomain.open(browserSessionsDomainSpec)
+  ctx.effect(() => async () => { await sessionsDomain.close() }, 'client-connection: browser-sessions domain')
+  const connection = new HostConnectionService(ctx, trustedHosts, browserAuth, sessionsDomain.table('sessions'))
   ctx.inject(['webServer'], (webCtx) => {
     assertImageBodyCapacity(webCtx, maxRequestBodyBytes)
     webCtx.on('webserver/index-inject', (table) => {
@@ -162,6 +178,18 @@ export async function apply(ctx: Context, config?: ConnectionConfig): Promise<vo
       kind: 'exact', path: CONNECT_PATH,
       handler: (req, res) => { connection.authorizeConnect(req, res) },
     }), 'client-connection: /connect route')
+    webCtx.effect(() => webCtx.webServer.register({
+      kind: 'exact', path: LOGIN_PATH,
+      handler: (req, res) => { connection.authorizeLogin(req, res) },
+    }), 'client-connection: /login route')
+    webCtx.effect(() => webCtx.webServer.register({
+      kind: 'exact', path: LOGIN_CALLBACK_PATH,
+      handler: (req, res) => connection.authorizeLoginCallback(req, res),
+    }), 'client-connection: /login/callback route')
+    webCtx.effect(() => webCtx.webServer.register({
+      kind: 'exact', path: LOGOUT_PATH,
+      handler: (req, res) => connection.authorizeLogout(req, res),
+    }), 'client-connection: /logout route')
   })
   ctx.inject(['attachments'], (attachmentCtx) => {
     assertImageBodyCapacity(attachmentCtx, maxRequestBodyBytes)

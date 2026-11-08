@@ -1,0 +1,9 @@
+The `identity-provider-oidc` row ships disabled because an OpenID Connect provider cannot work without deployment facts: enable the row and supply `issuer`, `clientId`, and the rest of the config in the profile patch that loads it. The configured `id` names the provider in `?provider=`, on the identity-provider registry, and as the `providerId` recorded on every identity it resolves.
+
+A browser login starts at `/login?provider=<id>`. The Web connection mints a single-use `state` value and a PKCE S256 code challenge, redirects the browser to the issuer's authorization endpoint, and the issuer redirects back to `/login/callback`; the connection then consumes that `state` and asks the provider to exchange the returned code with the matching code verifier. A deployment with exactly one registered provider selects it for a bare `/login`.
+
+The exchange repeats `redirect_uri` and `code_verifier` at the token endpoint, and authenticates with HTTP Basic only when `clientSecret` is set. Unless `authorizationEndpoint`, `tokenEndpoint`, and `jwksUri` are all configured, the endpoints come from `<issuer>/.well-known/openid-configuration`, read while the plugin loads, so an unreachable issuer or a document whose `issuer` differs from the configured value fails the load instead of the first login.
+
+The returned `id_token` is verified inside the harness process rather than by a remote introspection call: its RS256 signature is checked with `node:crypto` against the issuer's JWKS key, and the `iss`, `aud`, `exp`, and `sub` claims must all hold. Only after those checks does the login resolve an identity, so an unverified or expired token never admits a session.
+
+The tenant comes from the claim named by `tenantClaim` when the token carries it, otherwise from `defaultTenant`. When neither resolves a tenant, the login is refused instead of guessing one.

@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Confiança de backend multiusuário",
+    "description": "Verifica o cabeçalho do chamador assinado pela entrada."
+  }
+}

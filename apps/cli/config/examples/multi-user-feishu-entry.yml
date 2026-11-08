@@ -1,0 +1,26 @@
+# Hosted multi-user entry overlay (`dsh route-users --entry-patch`).
+#
+# The entry owns login and routing only: it disables the SPA dist owner (web-runtime) so
+# `route-users` claims the webserver fallback seat and forwards every admitted browser to its
+# backend. The backends render the GUI. App id/secret come from the environment, the shared
+# forward secret is exported by the launcher, and the ports table is generated and appended
+# automatically after this overlay.
+#
+#   export DSH_FEISHU_APP_ID=cli_xxxxxxxx
+#   export DSH_FEISHU_APP_SECRET=your-app-secret
+#   export DSH_FORWARD_SECRET=your-forward-secret
+#   pnpm dsh route-users --profile web --users ou_1,ou_2 --tenant tenant-7 \
+#     --entry-patch apps/cli/config/examples/multi-user-feishu-entry.yml \
+#     --user-patch apps/cli/config/examples/multi-user-feishu-backend.yml
+- id: web-runtime
+  disabled: true
+- id: identity-feishu
+  disabled: false
+  config:
+    id: !!js (process.env.DSH_FEISHU_PROVIDER_ID ?? 'feishu')
+    appId: !!js process.env.DSH_FEISHU_APP_ID
+    appSecret: !!js process.env.DSH_FEISHU_APP_SECRET
+- id: route-users
+  disabled: false
+  config:
+    forwardSecret: !!js process.env.DSH_FORWARD_SECRET

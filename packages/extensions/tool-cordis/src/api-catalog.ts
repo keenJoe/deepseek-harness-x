@@ -799,10 +799,27 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the Peer and idempotent release, or 409 for duplicate API ownership. The carrier releases on socket termination or failed upgrade; release removes API admission synchronously without cancelling independent HTTP calls.',
       },
       {
-        signature: 'authorizeIndex(request: ConnectionIndexRequest, response: ConnectionIndexResponse): boolean',
-        description: 'Authenticate one frontend index request, owning a token redirect or 401. The cookie this mints is `Secure` when the mounted Web carrier serves TLS, which only that listener\'s protocol decides.',
-        parameters: [{ name: 'request', description: 'root or configured-index HTTP request.' }, { name: 'response', description: 'response owned when the result is false.' }],
-        returns: 'true only when the frontend may serve index.html.',
+        signature: 'authorizeIndex(request: ConnectionIndexRequest, response: ConnectionIndexResponse): PeerScope | undefined',
+        description: 'Authenticate one frontend index request. A logged-in session renders for its user Peer, a single-user deployment renders for the bootstrap owner Peer, and a hosted deployment\'s launch token redirects into the login flow. The cookie a single-user deployment mints is `Secure` when the mounted Web carrier serves TLS, which only that listener\'s protocol decides.',
+        parameters: [{ name: 'request', description: 'root or configured-index HTTP request.' }, { name: 'response', description: 'response owned when no Peer is returned.' }],
+        returns: 'the Peer the index renders for, or undefined after writing a redirect or 401.',
+      },
+      {
+        signature: 'authorizeLogin(request: ConnectionIndexRequest, response: ConnectionIndexResponse): void',
+        description: 'Start one browser login: select a registered identity provider and redirect to its authorization endpoint; without a registered provider, return to the mount root.',
+        parameters: [{ name: 'request', description: 'GET request, optionally naming `provider`.' }, { name: 'response', description: 'response owned to completion.' }],
+      },
+      {
+        signature: 'authorizeLoginCallback(request: ConnectionIndexRequest, response: ConnectionIndexResponse): Promise<void>',
+        description: 'Complete one browser login: exchange the provider code, persist the session record, and mint the signed session cookie.',
+        parameters: [{ name: 'request', description: 'provider callback carrying `code` and `state`.' }, { name: 'response', description: 'response owned to completion.' }],
+        returns: 'resolution after the redirect is written.',
+      },
+      {
+        signature: 'authorizeLogout(request: ConnectionIndexRequest, response: ConnectionIndexResponse): Promise<void>',
+        description: 'End one browser session: delete its durable record and expire the cookie.',
+        parameters: [{ name: 'request', description: 'logout request carrying the session cookie.' }, { name: 'response', description: 'response owned to completion.' }],
+        returns: 'resolution after the record is deleted and the redirect is written.',
       },
       {
         signature: 'authenticatedUrl(baseUrl: string): string',
@@ -1720,6 +1737,32 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         parameters: [{ name: 'requiredIds', description: 'Entry ids whose inactive state is reported as a failure even when it predates this call.' }],
         returns: 'Inactive-entry diagnostics, the changed modules that load after a restart, and a profile-wide restart reason.',
         throws: ['The patch read, publication, preparation, apply, or activation failure of the recomposition, including a replacement plugin that fails to load or start, whose previous code no longer runs.'],
+      },
+    ],
+  },
+  {
+    key: 'identityProviders',
+    summary: '`ctx.identityProviders`.',
+    description: '`ctx.identityProviders`. Holds the id-to-adapter registry; each entry is published and cleared by the registering fiber, so an adapter never outlives the plugin that registered it.',
+    methods: [
+      {
+        signature: 'register(id: string, adapter: IdentityProvider): () => void',
+        description: 'Register one identity adapter under a stable id. One adapter owns one id: a second registration under the same id would let two plugins resolve the same `providerId` to different identities.',
+        parameters: [{ name: 'id', description: 'the registry key, equal to the adapter\'s own `id` and the `providerId` every resolved identity carries.' }, { name: 'adapter', description: 'the provider to register.' }],
+        returns: 'a synchronous disposer withdrawing the registration.',
+        throws: ['{IdentityProviderError} code `INVALID_PROVIDER` when the id is empty, the adapter declares no scopes, or the adapter\'s `id` does not match; code `DUPLICATE_PROVIDER` when the id is already claimed.'],
+      },
+      {
+        signature: 'list(): readonly string[]',
+        description: 'Every registered provider id, in registration order.',
+        parameters: [],
+        returns: 'one id per registered adapter.',
+      },
+      {
+        signature: 'get(id: string): IdentityProvider | undefined',
+        description: 'One registered adapter.',
+        parameters: [{ name: 'id', description: 'the provider id to resolve.' }],
+        returns: 'the adapter, or undefined when no provider claims that id.',
       },
     ],
   },
@@ -4660,6 +4703,18 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'resolution after durability.',
       },
       {
+        signature: 'workspacesOwnedBy(userKey: string): readonly WorkspaceId[]',
+        description: 'Workspaces owned by one user key, in durable registry order. A global-scope read: it answers for an explicit key instead of the current caller, which is what the Remote access policy needs to bind a non-owner Peer\'s own ids.',
+        parameters: [{ name: 'userKey', description: 'canonical user key stamped on that user\'s records.' }],
+        returns: 'the owned Workspace ids; empty when the key owns none.',
+      },
+      {
+        signature: 'sessionsOwnedBy(userKey: string): readonly SessionId[]',
+        description: 'Sessions accounted by the workspaces one user key owns, in durable registry order and each workspace\'s own session order. A session is accounted by at most one workspace (the one-owner accounting invariant), so ids never repeat. A global-scope read for the same reason as workspacesOwnedBy.',
+        parameters: [{ name: 'userKey', description: 'canonical user key stamped on the accounting workspaces.' }],
+        returns: 'the owned Session ids; empty when the key owns no workspace or none accounts a session.',
+      },
+      {
         signature: 'async resolveByPath(path: string): Promise<Workspace | undefined>',
         description: 'Resolve by canonical directory path without creating or mutating a workspace. A missing path rejects during `realpath`; an existing unowned directory returns `undefined`.',
         parameters: [{ name: 'path', description: 'Existing directory path in a fully qualified spelling.' }],
@@ -6673,6 +6728,26 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'HostConnectionRpc',
     declaration: 'export interface HostConnectionRpc {\n    handle(channel: string, handler: ConnectionRpcHandler): () => Promise<void>;\n    intercept(channel: \'/api\', matches: ConnectionRpcEndpointMatcher, handler: ConnectionRpcHandler): () => Promise<void>;\n}',
+  },
+  {
+    name: 'IdentityActor',
+    declaration: 'export interface IdentityActor extends IdentityTriple {\n    readonly displayName: string;\n    readonly avatarUrl?: string;\n}',
+  },
+  {
+    name: 'IdentityAuthorizationRequest',
+    declaration: 'export interface IdentityAuthorizationRequest {\n    readonly state: string;\n    readonly redirectUri: string;\n    readonly scopes: readonly string[];\n    readonly loginHint?: string;\n    readonly codeChallenge?: string;\n    readonly codeChallengeMethod?: \'S256\';\n}',
+  },
+  {
+    name: 'IdentityExchangeRequest',
+    declaration: 'export interface IdentityExchangeRequest {\n    readonly code: string;\n    readonly state: string;\n    readonly redirectUri: string;\n    readonly codeVerifier?: string;\n}',
+  },
+  {
+    name: 'IdentityProvider',
+    declaration: 'export interface IdentityProvider {\n    readonly id: string;\n    readonly scopes: readonly string[];\n    authorizationUrl(request: IdentityAuthorizationRequest): URL;\n    exchange(request: IdentityExchangeRequest): Promise<IdentityActor>;\n}',
+  },
+  {
+    name: 'IdentityTriple',
+    declaration: 'export interface IdentityTriple {\n    readonly providerId: string;\n    readonly tenantId: string;\n    readonly subjectId: string;\n}',
   },
   {
     name: 'ImageAttachmentLimits',
@@ -10128,7 +10203,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'Workspace',
-    declaration: 'export interface Workspace {\n    readonly id: WorkspaceId;\n    readonly path: string;\n    readonly title: string;\n    readonly createdAt: string;\n    readonly updatedAt: string;\n    readonly sessionIds: readonly SessionId[];\n    setTitle(title: string): Promise<void>;\n    attachSession(sessionId: SessionId): Promise<void>;\n    insertSessionBefore(sessionId: SessionId, beforeSessionId?: SessionId): Promise<void>;\n    detachSession(sessionId: SessionId): Promise<void>;\n    status(): Promise<\'ok\' | \'missing-dir\'>;\n}',
+    declaration: 'export interface Workspace {\n    readonly id: WorkspaceId;\n    readonly path: string;\n    readonly title: string;\n    readonly createdAt: string;\n    readonly updatedAt: string;\n    readonly owner?: string | undefined;\n    readonly sessionIds: readonly SessionId[];\n    setTitle(title: string): Promise<void>;\n    attachSession(sessionId: SessionId): Promise<void>;\n    insertSessionBefore(sessionId: SessionId, beforeSessionId?: SessionId): Promise<void>;\n    detachSession(sessionId: SessionId): Promise<void>;\n    status(): Promise<\'ok\' | \'missing-dir\'>;\n}',
   },
   {
     name: 'WorkspaceArchiveSessionRequest',

@@ -87,6 +87,14 @@ export interface Workspace {
   readonly updatedAt: string
 
   /**
+   * Canonical partition key of the logged-in user that owns this workspace,
+   * stamped at create. Absent for legacy/global records written before
+   * per-user partitioning and for the owner principal, which sees and mutates
+   * every record.
+   */
+  readonly owner?: string | undefined
+
+  /**
    * Header-validated sessions in manually owned order: a new session is
    * prepended at attach, explicit reordering goes through
    * `insertSessionBefore`, and activity never reorders. The durable candidate

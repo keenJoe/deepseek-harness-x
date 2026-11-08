@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Confianza de backend multiusuario",
+    "description": "Verifica la cabecera firmada por la entrada para admitir peticiones autenticadas."
+  }
+}

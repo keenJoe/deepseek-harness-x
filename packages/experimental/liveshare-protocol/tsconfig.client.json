@@ -7,7 +7,6 @@
   },
   "files": [
     "src/viewer-carrier.ts",
-    "src/viewer-states.ts",
-    "src/identity/types.ts"
+    "src/viewer-states.ts"
   ]
 }

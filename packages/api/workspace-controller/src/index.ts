@@ -3,7 +3,7 @@
 import { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { Remote, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
-import type {} from '@deepseek-ai/dsh-api-remote-access'
+import { createUserAccessPolicy } from '@deepseek-ai/dsh-api-remote-access'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { WorkspaceCommands } from './commands.ts'
 import { DirectoryPickerController } from './directory-picker.ts'
@@ -71,6 +71,12 @@ export class WorkspaceController extends TypertRemoteService {
   constructor(ctx: Context, config: Config = {}) {
     super(ctx, 'workspaceController', { namespace: 'workspace' })
     ctx.typert.resources.register('workspace', { field: 'workspaceId' })
+    // The workspace owner is where ownership facts live, so this entry is the
+    // one that registers the `user` access policy over those indexes.
+    ctx.effect(() => ctx.remoteAccess.registerPolicy('user', createUserAccessPolicy({
+      sessions: key => ctx.workspaceRegistry.sessionsOwnedBy(key),
+      workspaces: key => ctx.workspaceRegistry.workspacesOwnedBy(key),
+    })))
     this.config = WorkspaceController.Config(config)
     if (this.config.documentsDirectory !== undefined) validateDocumentsDirectory(this.config.documentsDirectory)
     this.commands = new WorkspaceCommands(ctx)

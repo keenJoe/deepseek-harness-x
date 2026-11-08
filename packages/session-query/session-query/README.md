@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-session-query` lets application code list, filter, read, and search session history, inspect bounded event context, and trace session or event relationships. Reads prefer live sessions over persisted copies and return detached clones from one consistent observation. Exact reads, filters, and traces work with any supported storage setup; ranked full-text search requires a backend such as `dsh-session-query-sqlite`. Use it when application code needs programmatic access to the history presented to the model.
+`dsh-session-query` lets application code list, filter, read, search, and trace session history from one consistent observation. Reads prefer live sessions over persisted copies and return detached clones; ranked full-text search requires a backend such as `dsh-session-query-sqlite`. Use it for programmatic access to the history presented to the model. A logged-in `user` principal is confined to its own persisted sessions under the harness home, while the owner and trusted in-process code keep the global corpus.
 
 ## Table of Contents
 
@@ -49,6 +49,10 @@ Body-free records expose only `SessionHeader.isSeeded`. Reads that return event 
 `SessionResultFilter` narrows sessions by id, nullable cwd, created-at range, nullable parent, or source availability; `SessionEventResultFilter` narrows events by seq/time range, event type, surface, or literal text. Filter arrays are ANDed and list values within one clause are ORed; empty list values match nothing, ranges are inclusive, and malformed ranges or unknown closed-union values fail with `SESSION_QUERY_INVALID_FILTER`.
 
 The text clause is a literal, case-insensitive, whitespace-flexible scan of extracted semantic text — not a full-text query. Use it for arbitrary substring recall; use the mounted backend's search methods when you need ranked full-text results.
+
+### Per-user scoping
+
+A Remote call that carries a `user` principal reads only the caller's own persisted root — `<home>/users/<userKey>` — and drops live sessions, so `listSessions`, `filterSessions`, and the exact reads never expose another user's history. The owner principal and trusted in-process code outside a Remote call resolve no user root and keep the complete live-preferred corpus. A session whose materialized location has no `path`, or one outside the caller's root, is invisible to that user; the caller's own sessions must be recorded under its per-user root by the persistence backend.
 
 ### Configuration
 
@@ -146,7 +150,7 @@ None; this package neither assembles nor sends a provider request.
 
 These limits define when this package is a poor fit or needs special operational care. They are current package constraints, not a task backlog.
 
-- **No caller authorization** — this is trusted context-wide infrastructure; a model tool or UI must constrain which sessions its caller may inspect.
+- **Scoping is registry-level, not backend routing** — a `user` principal is confined to its own persisted root here, but the persistence backend still sees one global root; partition the durable roots and route writes per user in the backend. Live sessions are excluded from a user's listing, and a persisted session whose materialized location has no `path` is invisible to that user until its backend records one under the per-user root.
 - **No provider coordinator or fallback** — the service is abstract over search, so a composition must mount a concrete backend; there is no search-provider registry or fallback implementation.
 - **Exact reads replay whole logs** — `readSession`, `readSurface`, `filterEvents`, and event traces load and validate the complete logical log, so very large histories pay full inspection per call; `listSessions` stays lightweight.
 - **Literal text scan, not full-text search** — the `text` filter scans extracted documents with a regular expression and does not rank; ranked search requires the mounted backend.

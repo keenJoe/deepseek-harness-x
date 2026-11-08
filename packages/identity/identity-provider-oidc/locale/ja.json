@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "OIDC ID プロバイダー",
+    "description": "デプロイで設定する OpenID Connect ログインを追加します。ブラウザーが issuer で認可し、ハーネスは返された id_token を検証してからセッションを許可します。",
+    "detail": "docs/DETAIL.md"
+  }
+}

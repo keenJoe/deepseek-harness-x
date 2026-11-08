@@ -9,7 +9,7 @@ kind: "package-library"
 
 ## 概述
 
-`@deepseek-ai/dsh-home-paths` 让包作者能够解析 DeepSeek Harness 数据根目录，以及其消费方读取的共享 agent 配置根目录。显式路径优先于环境变量，后者优先于操作系统主目录下的默认值；空白环境变量会被忽略。其公开辅助函数可以在不暴露机器绝对路径的情况下显示根目录，仅展开单独或当前用户的波浪号形式，并规范化最终路径段尚不存在的监听目标。请把它作为库依赖直接使用，不要通过 `cordis.yml` 加载。
+`@deepseek-ai/dsh-home-paths` 让包作者能够解析 DeepSeek Harness 数据根目录，以及其消费方读取的共享 agent 配置根目录。显式路径优先于环境变量，后者优先于操作系统主目录下的默认值；空白环境变量会被忽略。其公开辅助函数可以解析某个已登录用户在 `users/<userKey>` 下的按用户根目录、把旧 owner 主目录迁移进去、在不暴露机器绝对路径的情况下显示根目录、仅展开单独或当前用户的波浪号形式，并规范化最终路径段尚不存在的监听目标。请把它作为库依赖直接使用，不要通过 `cordis.yml` 加载。
 
 ## 目录
 
@@ -51,6 +51,12 @@ agentsHomeDisplay(agents)            // ~/.agents, or $DSH_AGENTS_HOME for any c
 
 `resolveAgentsHome` 采用与 `resolveDshHome` 相同的优先级、空白值处理与波浪号展开。该根目录刻意位于 `$DSH_HOME` 之外，因为其他 agent 工具也会共享它：`dsh-agent-instructions` 读取其中的用户全局 `AGENTS.md`，`dsh-skill-filesystem` 扫描其中的 `skills/` 目录。
 
+### 按用户分区数据
+
+`userHomePath(userKey, ...segments)` 把规范的百分号编码用户 key 拼到解析后的主目录下，得到 `<home>/users/<userKey>`，使某个已登录用户的持久化根目录都位于一个遍历安全的目录下。key 由 identity 包（`identityKeyOf`）生成，绝不来自调用方可控的路径输入；从 principal 派生 key 的调用方必须先拒绝空的 provider 或 subject。这是纯路径拼接：它既不校验也不创建任何内容。
+
+`migrateLegacyRootToUser(legacyRoot, targetUserRoot)` 把旧 owner/全局主目录的每个直接子项移动到按用户根目录，旧目录本身保留在原地但被清空。它是一次性的显式操作：逐个 rename 子项，当任一目标子项已存在、或源目录缺失时在改动任何内容之前拒绝，并且只在全部冲突检查通过后才创建目标目录。请在分区迁移时显式调用它——绝不在每次启动时调用。
+
 ### 展示主目录
 
 面向用户的路径请以符号形式渲染根目录，而不是机器路径：默认主目录显示为 `~/.dsh`，任何已配置的主目录显示为 `$DSH_HOME`，默认共享 agents 根目录显示为 `~/.agents`，任何已配置的共享 agents 根目录显示为 `$DSH_AGENTS_HOME`。两种展示形式都不会泄露机器的绝对路径。
@@ -77,11 +83,11 @@ agentsHomeDisplay(agents)            // ~/.agents, or $DSH_AGENTS_HOME for any c
 
 | 文件 | 职责 |
 |---|---|
-| [`src/index.ts`](src/index.ts) | 主目录解析、路径拼接、展示、波浪号展开与监听路径规范化 |
+| [`src/index.ts`](src/index.ts) | 主目录解析、按用户路径拼接、旧数据迁移、展示、波浪号展开与监听路径规范化 |
 
 ### 解析规则
 
-`resolveDshHome` 先读显式覆盖值，然后读 `$DSH_HOME`，最后回退到操作系统主目录拼接 `.dsh`。`resolveAgentsHome` 对 `$DSH_AGENTS_HOME` 与 `~/.agents` 读取同样的三层值。选中的值经过波浪号展开并规范化为绝对路径；`dshHomePath` 用 Node 的平台路径规则拼接子路径段。`dshHomeDisplay` 与 `agentsHomeDisplay` 把解析出的路径与默认根目录比较并返回符号标签，因此已配置的根目录绝不泄露其绝对路径。
+`resolveDshHome` 先读显式覆盖值，然后读 `$DSH_HOME`，最后回退到操作系统主目录拼接 `.dsh`。`resolveAgentsHome` 对 `$DSH_AGENTS_HOME` 与 `~/.agents` 读取同样的三层值。选中的值经过波浪号展开并规范化为绝对路径；`dshHomePath` 用 Node 的平台路径规则拼接子路径段。`dshHomeDisplay` 与 `agentsHomeDisplay` 把解析出的路径与默认根目录比较并返回符号标签，因此已配置的根目录绝不泄露其绝对路径。`userHomePath` 用同一个解析出的主目录派生按用户根目录，`migrateLegacyRootToUser` 把旧主目录的直接子项 rename 到其下，且从不删除源目录。
 
 ### 规范化机制
 
@@ -111,6 +117,7 @@ agentsHomeDisplay(agents)            // ~/.agents, or $DSH_AGENTS_HOME for any c
 
 - **展开范围刻意保持狭窄**——只有单独的 `~`、`~/...` 和 `~\...` 使用当前操作系统主目录；`~alice/...` 等指定用户的形式、环境变量与 shell 表达式保持不变。
 - **规范化只读不改**——`canonicalizeWatchPath` 执行 `realpath` 探测并传播除路径不存在以外的错误；调用方仍负责目录创建、权限，以及对结果路径应用信任策略。
+- **迁移显式且冲突安全，但非事务性**——`migrateLegacyRootToUser` 在完成一次冲突预检后逐个 rename 直接子项；并发写入任一目录的进程仍可能交错，因此请迁移处于静止状态的主目录，且无需重跑，因为预检会拒绝已存在的目标子项。
 
 <a id="dev-note"></a>
 ### 开发备注

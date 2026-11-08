@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Mehrbenutzer-Backend-Vertrauen",
+    "description": "Prüft den vom Einstieg signierten Aufrufer-Header."
+  }
+}

@@ -14,6 +14,7 @@ import {
   type SessionSeq as SessionSeqType,
 } from '@deepseek-ai/dsh-session'
 import { foldSessionTitle } from '@deepseek-ai/dsh-session-title'
+import { callerOf, userRoot } from '@deepseek-ai/dsh-user-principal'
 import type { SessionTitleSnapshot } from '@deepseek-ai/dsh-session-title'
 import type {
   SessionEventResultFilter,
@@ -172,7 +173,7 @@ export abstract class SessionQueryEngine extends Service {
    * @returns deterministic newest-first cloned session records.
    */
   listSessions(signal?: AbortSignal): Promise<SessionRecord[]> {
-    return this._corpus.listSessions(signal)
+    return this._corpus.listSessions(signal, this._userRoot())
   }
 
   /**
@@ -182,7 +183,7 @@ export abstract class SessionQueryEngine extends Service {
    * @throws when persistence, header compatibility, or replay validation fails.
    */
   async readSession(sessionId: SessionId): Promise<SessionLogSnapshot> {
-    const loaded = await this._corpus.load(sessionId)
+    const loaded = await this._corpus.load(sessionId, undefined, this._userRoot())
     Session.create(
       sessionId,
       loaded.events,
@@ -258,7 +259,7 @@ export abstract class SessionQueryEngine extends Service {
         session: structuredClone(source.header),
         ...title === undefined ? {} : { title },
       }
-    }, signal)
+    }, signal, this._userRoot())
   }
 
   /**
@@ -267,7 +268,7 @@ export abstract class SessionQueryEngine extends Service {
    * @returns event records in ascending seq order.
    */
   async listEvents(sessionId: SessionId): Promise<SessionEventRecord[]> {
-    const loaded = await this._corpus.load(sessionId)
+    const loaded = await this._corpus.load(sessionId, undefined, this._userRoot())
     return tracing.eventRecords(sessionId, loaded.events)
   }
 
@@ -289,14 +290,14 @@ export abstract class SessionQueryEngine extends Service {
     filters: readonly SessionResultFilter[],
     signal?: AbortSignal,
   ): Promise<SessionRecord[]> {
-    return filterSessionResults(await this._corpus.listSessions(signal), filters)
+    return filterSessionResults(await this._corpus.listSessions(signal, this._userRoot()), filters)
   }
 
   private async _filterEvents(
     sessionId: SessionId,
     filters: readonly SessionEventResultFilter[],
   ): Promise<SessionEventSearchDocument[]> {
-    const loaded = await this._corpus.load(sessionId)
+    const loaded = await this._corpus.load(sessionId, undefined, this._userRoot())
     const documents = buildSessionEventSearchDocuments(sessionId, loaded.events)
     return filterSessionEventDocuments(documents, filters)
   }
@@ -308,7 +309,7 @@ export abstract class SessionQueryEngine extends Service {
    * @throws when source resolution fails or the session surface is invalid.
    */
   async readSurface(sessionId: SessionId): Promise<SessionSurfaceSnapshot> {
-    const loaded = await this._corpus.load(sessionId)
+    const loaded = await this._corpus.load(sessionId, undefined, this._userRoot())
     return {
       session: structuredClone(loaded.header),
       inheritedEventCount: loaded.inheritedEventCount,
@@ -325,7 +326,7 @@ export abstract class SessionQueryEngine extends Service {
    * @throws when corpus resolution fails, the target is absent, or its known ancestry cycles.
    */
   async traceSession(sessionId: SessionId, signal?: AbortSignal): Promise<SessionLineageTrace> {
-    const records = await this._corpus.listSessions(signal)
+    const records = await this._corpus.listSessions(signal, this._userRoot())
     signal?.throwIfAborted()
     return tracing.traceSession(records, sessionId)
   }
@@ -338,7 +339,7 @@ export abstract class SessionQueryEngine extends Service {
    * @throws when source resolution fails, the target is absent, or surface/source-event validation fails.
    */
   async traceEvent(request: SessionEventTraceRequest, signal?: AbortSignal): Promise<SessionEventTraceObservation> {
-    const loaded = await this._corpus.load(request.sessionId, signal)
+    const loaded = await this._corpus.load(request.sessionId, signal, this._userRoot())
     signal?.throwIfAborted()
     return {
       session: loaded.header,
@@ -367,7 +368,7 @@ export abstract class SessionQueryEngine extends Service {
     after: number,
     signal?: AbortSignal,
   ): Promise<SessionEventWindow> {
-    const loaded = await this._corpus.load(sessionId, signal)
+    const loaded = await this._corpus.load(sessionId, signal, this._userRoot())
     signal?.throwIfAborted()
     const target = loaded.events[seq]
     if (target === undefined || target.seq !== seq) {
@@ -391,6 +392,25 @@ export abstract class SessionQueryEngine extends Service {
       startSeq,
       endSeq,
     }
+  }
+
+  /**
+   * Resolve the per-user root the current Remote caller is confined to.
+   *
+   * The owner principal and trusted in-process code outside a Remote call
+   * read `undefined`, which preserves the global live-preferred corpus. A
+   * `user` principal reads `undefined` for every other kind, confining the
+   * engine to that user's persisted directory under the harness home.
+   * @returns the absolute user root, or `undefined` for global scope.
+   */
+  private _userRoot(): string | undefined {
+    // Typert registers `invocation` as a root accessor so a non-Remote read
+    // resolves undefined; a standalone service test never constructs a Remote
+    // Service, so the property is absent there. The `in` guard keeps the
+    // engine constructible without Typert while still reading the caller when
+    // a Remote call carries an own invocation.
+    const user = callerOf(this.ctx)
+    return user === undefined ? undefined : userRoot(user)
   }
 
   private _readWindow(name: 'before' | 'after', value: number | undefined): number {

@@ -959,6 +959,14 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Provider registration and selection plus normalized query execution over exactly four operations; the seam offers no protocol escape hatch, so a backend translates into the normalized request and result.',
   },
   {
+    key: 'identityProviders',
+    pkg: 'identity-providers',
+    title: 'Identity-provider registry',
+    mode: 'seam',
+    implementations: [],
+    note: 'A provider plugin registers one adapter per identity source under a stable id; the seam owns the id-to-adapter registry, never the protocol, and the hosted login flow resolves a browser callback through a selected adapter.',
+  },
+  {
     key: 'dynamicCordisRunner',
     pkg: 'cordis-host-runner',
     title: 'Dynamic Cordis package host runner',

@@ -14,12 +14,15 @@
     "src/connect-protocol.ts",
     "src/http-bridge.ts",
     "src/index.ts",
+    "src/login.ts",
     "src/loopback-hostname.ts",
     "src/peer.ts",
     "src/recovery-config.ts",
     "src/rpc-host.ts",
     "src/rpc-schema.ts",
-    "src/rpc.ts"
+    "src/rpc.ts",
+    "src/storage.ts",
+    "src/connection-trust.ts"
   ],
   "references": [
     {
@@ -48,6 +51,18 @@
     },
     {
       "path": "../../util/brand"
+    },
+    {
+      "path": "../../identity/identity-protocol"
+    },
+    {
+      "path": "../../identity/identity-providers"
+    },
+    {
+      "path": "../../identity/user-principal"
+    },
+    {
+      "path": "../../storage/storage-domain"
     }
   ]
 }

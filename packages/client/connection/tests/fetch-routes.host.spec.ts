@@ -10,7 +10,7 @@ async function mounted(): Promise<{
 }> {
   const ctx = new Context()
   const fiber = ctx.plugin((pluginCtx) => {
-    new HostConnectionService(pluginCtx, [], {} as BrowserAuth)
+    new HostConnectionService(pluginCtx, [], {} as BrowserAuth, {} as never)
   })
   await fiber.await()
   return {
@@ -147,7 +147,7 @@ describe('Connection in-process Peers', () => {
 
   it('disposes a created Peer with the plugin that read the Connection', async () => {
     const ctx = new Context()
-    const provider = ctx.plugin((pluginCtx) => { new HostConnectionService(pluginCtx, [], {} as BrowserAuth) })
+    const provider = ctx.plugin((pluginCtx) => { new HostConnectionService(pluginCtx, [], {} as BrowserAuth, {} as never) })
     await provider.await()
     let created: PeerScope | undefined
     const consumer = ctx.plugin({

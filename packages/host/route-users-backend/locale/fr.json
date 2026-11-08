@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Confiance backend multi-utilisateur",
+    "description": "Vérifie l’en-tête signé par l’entrée pour admettre les requêtes authentifiées."
+  }
+}

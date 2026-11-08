@@ -1,0 +1,5 @@
+- insert:
+    - id: identity-provider-feishu
+      name: '@deepseek-ai/dsh-identity-provider-feishu'
+      # Deployment-configured: the provider needs an app id and app secret.
+      disabled: true

@@ -37,6 +37,8 @@ kind: "package-reference"
 
 role `{ name, resource, actions }` 是普通值，表示限定一种资源种类（`global` 或在 `TypertResourceMap` 中声明的种类）的 action 集合。binding `{ role, resource, condition? }` 在该 role 种类的一个资源上授予该 role。policy 根据预先载入内存的状态同步回答 `bindings(principal)` 与可选的 `explain(request)`。只有在每个已解析资源上都有某个 binding 指向该资源、其 role 列出该 action、且没有 condition 或 condition 放行时，请求才被放行。资源之间相互独立：`global` 上的授权不蕴含任何其他资源上的授权，任何资源也不蕴含另一个资源。condition 收到 `{ action, resource, args? }`，只对资源与 role 都匹配的 binding 调用；事件、快照与列表过滤时没有 `args`。`bindings()` 在每次 `decide()`、每次 `allows()` 判定与每次快照计算中各调用一次，不跨判定缓存，因此依赖时间的状态对下一次调用即时生效。
 
+本包还提供 `createUserAccessPolicy`，即托管多用户部署注册的 `user` 策略：它把已登录 principal 限制在“记录的 owner 解析为该 principal 规范用户键”的 Session 与 Workspace 上。[workspace-controller](../workspace-controller/README.zh.md) 从内存归属索引注册它 —— 这些事实只存在于该索引中。
+
 Gateway 依次从 `@Remote` 与 `@RemoteScope` 的 `resources` 读取函数、lookup 与 Host Context adapter 的 `resource` 声明、`typert.resources` 中的默认字段或 resolver 声明解析资源，解析顺序由 [API Gateway](../gateway/README.zh.md) 负责；本包不读取任何参数字段。不指明任何资源的调用只访问 `global` 资源，因此只有 `global` 级 role 能放行；把某个 action 放进 `global` 级 role，等于允许该 principal 在调用未指明的任何资源上调用它。资源非法的调用由 Gateway 以 `resource-invalid` 拒绝，不询问 `decide()`。
 
 policy 作者必须把 `session/attachment` 视为整个附件存储的读取权限：在任意一条 Session 资源上授予该 action，就允许调用方使用这个 `sessionId` 读取其他 Session 引用或未被任何 Session 引用的图片。Gateway 仍检查该 Session 资源，但处理函数既不检查 Session 是否存在，也不检查图片关联。需要让不同读者使用不同图片存储时，须使用独立 Host 实例及各自的 `DSH_HOME` 目录；见[图片访问规则](../../../.agents/notes/implemented/architecture/2026-10-23-store-scoped-image-reads.zh.md)。
