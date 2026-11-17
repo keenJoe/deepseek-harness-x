@@ -1,0 +1,34 @@
+# Bilingual-pair consistency record for 2026-11-18-per-user-realm-partitioning.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/proposed/architecture/2026-11-18-per-user-realm-partitioning.md
+/agent-note-per-user-realm-partitioning-of-durable-state:
+  en: acc9b4e0dbe59999
+  zh: 59d8007b6e546e9f
+/agent-note-per-user-realm-partitioning-of-durable-state/problem:
+  en: a3fa785eec0ab2d1
+  zh: 4111a89387a8bf72
+/agent-note-per-user-realm-partitioning-of-durable-state/proposal:
+  en: 3593d67117c5b9be
+  zh: f15684d65e56e2da
+/agent-note-per-user-realm-partitioning-of-durable-state/proposal/why-a-realm-rather-than-a-per-call-root:
+  en: 31c89c77c5327b81
+  zh: eff8570681e1414a
+/agent-note-per-user-realm-partitioning-of-durable-state/proposal/the-registry:
+  en: 7e517080e6760974
+  zh: a283e0d435a28f23
+/agent-note-per-user-realm-partitioning-of-durable-state/proposal/routing-a-call-into-its-realm:
+  en: fcf6b82167ea7198
+  zh: cc27f09f12e04fe6
+/agent-note-per-user-realm-partitioning-of-durable-state/proposal/what-the-realm-does-not-separate:
+  en: e3a941962a591d33
+  zh: 50f5fbb7f93081f4
+/agent-note-per-user-realm-partitioning-of-durable-state/alternatives-considered:
+  en: 9c3c0c58117ec23f
+  zh: 48faeda4a6948433
+/agent-note-per-user-realm-partitioning-of-durable-state/acceptance-criteria:
+  en: 53e74e0b2cbeb459
+  zh: 15d281bedb76f3a0
+/agent-note-per-user-realm-partitioning-of-durable-state/risks:
+  en: 7bd3f23e8e029aeb
+  zh: 94c2bce0e77dfbcb

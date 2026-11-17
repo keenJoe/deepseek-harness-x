@@ -1,0 +1,22 @@
+# Bilingual-pair consistency record for 2026-11-18-user-workspace-root-boundaries.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/proposed/architecture/2026-11-18-user-workspace-root-boundaries.md
+/agent-note-user-workspace-root-boundaries:
+  en: 9792cf6b2330204a
+  zh: 92aefbbe22d3eb38
+/agent-note-user-workspace-root-boundaries/problem:
+  en: 3fc50b8f0dffc2fb
+  zh: f8fbc4cd04fc2b43
+/agent-note-user-workspace-root-boundaries/proposal:
+  en: 99ef8c8708f9319d
+  zh: 81077a349281f490
+/agent-note-user-workspace-root-boundaries/alternatives-considered:
+  en: 875789574b350b22
+  zh: c19628f6aa7f37bd
+/agent-note-user-workspace-root-boundaries/acceptance-criteria:
+  en: e21ff7e5f2bf2b41
+  zh: 32df389ddcd0c1e3
+/agent-note-user-workspace-root-boundaries/risks:
+  en: 505712ec87445e42
+  zh: 0a863be1ec27f9c5
