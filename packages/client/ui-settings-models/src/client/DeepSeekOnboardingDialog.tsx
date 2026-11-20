@@ -26,6 +26,8 @@ export interface DeepSeekOnboardingInjected {
   track?: TrackProductEvent
   /** Whether first-run setup should show automatically. Explicit requests remain available. */
   automatic: boolean
+  /** Whether the page serves a signed-in person of a hosted deployment; the step then opens its key editor. */
+  hosted: boolean
   hooks: {
     /** Shared Models-page join state, bound by the slot renderer. */
     models: SnapshotStore<ModelsSettingsState>
@@ -56,8 +58,8 @@ function assertNever(_value: never): never {
  * @returns the onboarding modal or null when onboarding needs no intervention.
  */
 export function DeepSeekOnboardingDialog(props: DeepSeekOnboardingDialogProps): ReactNode {
-  const { complete, controller, useModels, operations, schema, t, renderSlot, automatic, explicit = false } = props
-  const [apiKey, setApiKey] = useState(explicit)
+  const { complete, controller, useModels, operations, schema, t, renderSlot, automatic, hosted, explicit = false } = props
+  const [apiKey, setApiKey] = useState(explicit || hosted)
   const state = useModels(snapshot => snapshot)
   const readiness = onboardingReadiness(state)
 

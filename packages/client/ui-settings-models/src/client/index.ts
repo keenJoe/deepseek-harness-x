@@ -28,7 +28,7 @@ import { createModelsOperations } from './operations.ts'
 import { createSettingsSchemaOperations } from './schema-operations.ts'
 import { en, ja, es, fr, de, ru, pt, zh, type ModelsKey } from './locales.ts'
 import { WELCOME_NOTICE_SETTINGS_NAMESPACE } from '../onboarding-copy.ts'
-import { Config, ONBOARDING_CONFIG_GLOBAL } from '../onboarding-config.ts'
+import { Config, hostedPage, ONBOARDING_CONFIG_GLOBAL } from '../onboarding-config.ts'
 
 export type { ModelsSectionInjected, ModelsSectionProps } from './ModelsSection.tsx'
 export type { ModelsFooterOwnerProps, ProviderCardExtrasOwnerProps } from './slot-contract.ts'
@@ -80,6 +80,7 @@ export function apply(ctx: ClientContext): void {
   const payload = page[ONBOARDING_CONFIG_GLOBAL]
   const configured = Config(payload === undefined ? {} : payload)
   const credentialOnboarding = configured.credentialOnboarding && !('dshDesktop' in globalThis)
+  const hosted = hostedPage(payload)
   ctx.effect(() => ctx.locale.register(NS, { zh, en, ja, es, fr, de, ru, pt }), 'ui-settings-models: copy dictionaries')
 
   const schema = createSettingsSchemaOperations(ctx.settingsSchema)
@@ -99,6 +100,7 @@ export function apply(ctx: ClientContext): void {
   })
   const deepSeekOnboardingInjected = (): DeepSeekOnboardingInjected => ({
     automatic: credentialOnboarding,
+    hosted,
     track: (name, attributes) => ctx.get('productAnalytics')?.track(name, attributes),
     controller,
     hooks: { models: controller.store },
