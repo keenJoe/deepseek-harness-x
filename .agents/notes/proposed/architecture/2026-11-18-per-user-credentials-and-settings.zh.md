@@ -51,7 +51,7 @@ Status: proposed
 
 ### 4. 把账户范围的状态排除在用户界面之外
 
-`account-controller` 流转部署的 DeepSeek 账户状态（[`packages/api/account-controller/src/index.ts`](../../../../packages/api/account-controller/src/index.ts)）。那是部署的一个账户，不是按人的事实，因此保持仅 owner：策略继续对其解析不出绑定。
+`deepseek-account` 流转部署的 DeepSeek 账户状态（[`packages/account/deepseek-account/src/index.ts`](../../../../packages/account/deepseek-account/src/index.ts)）。那是部署的一个账户，不是按人的事实，因此保持仅 owner：策略继续对其解析不出绑定。
 
 ## 备选方案
 
@@ -77,6 +77,6 @@ Status: proposed
 
 **密钥脱敏现在按 realm 运行。** `settings.describe({ redactSecrets: true })` 是 wire 避免返回密钥的方式。泄漏未脱敏描述符的 realm 会把某人的 key 返回给该人的浏览器，这是正确的；返回给任何到达该 realm 的调用者则不是。脱敏路径仍是同一份代码；变化的是有多少实例在运行它。
 
-**用户的 key 在首次使用前未经验证。** `resolveDeepSeekApiKey` 在请求时验证（[`packages/llm/llm-deepseek/src/credential.ts:15`](../../../../packages/llm/llm-deepseek/src/credential.ts)）；拼写错误表现为失败的回合而不是被拒绝的保存。设置界面应在写入时验证，让当事人在能修复的时刻得知。
+**用户的 key 在首次使用前未经验证。** `ctx.deepseekAuth` 在请求时规范化已保存的 key（[`packages/account/deepseek-auth/src/index.ts`](../../../../packages/account/deepseek-auth/src/index.ts)）；拼写错误表现为失败的回合而不是被拒绝的保存。设置界面应在写入时验证，让当事人在能修复的时刻得知。
 
 **吊销现在按人进行。** 清除部署 key 过去会一次禁掉所有用户。按用户存储意味着运维必须逐个文档处理才能吊销，而本提案没有对应的管理界面。

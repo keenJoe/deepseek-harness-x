@@ -1,6 +1,6 @@
 ---
 description: "Routes each signed-in browser to its own harness backend from one entry URL."
-kind: "package-library"
+kind: "package-reference"
 ---
 
 # @deepseek-ai/dsh-route-users
@@ -44,19 +44,24 @@ The key is the canonical `userId` (`provider:tenant:subject`). Requests to `/log
 |---|---|---|
 | `ports` | Required | Canonical user key to loopback port mapping. A request is refused 502 when its user has no entry. |
 
-<a id="known-limitations-and-deferred-work"></a>
+<a id="model-experience"></a>
+## Model Experience
+
+None, as per-user routing happens on the HTTP surface and contributes no model input.
+
+#### KV Cache effect
+
+None; routing does not modify model requests.
+
 ## Known Limitations and Deferred Work
+
+<a id="known-limitations-and-deferred-work"></a>
 
 - The router streams HTTP but does not re-write absolute redirects or WebSocket upgrades; a deployment that needs those hosts the backends under one authority instead.
 - Hop-by-hop headers are stripped; the backend must accept the entry as the client authority.
 
-<a id="model-experience"></a>
-## Model Experience
-
-None. Routing runs on the HTTP surface and never reaches a model request.
-
 <a id="dev-note"></a>
-## Dev Note
+### Dev Note
 
 <details>
 <summary>Working context for maintainers — click to expand</summary>

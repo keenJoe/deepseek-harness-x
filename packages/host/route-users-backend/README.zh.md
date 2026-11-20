@@ -1,6 +1,6 @@
 ---
 description: "校验入口签名的调用方头，使每用户后端放行已由入口认证的请求。"
-kind: "package-library"
+kind: "package-reference"
 ---
 
 # @deepseek-ai/dsh-route-users-backend
@@ -43,19 +43,24 @@ kind: "package-library"
 |---|---|---|
 | `forwardSecret` | 必填 | 共享转发密钥，等于入口路由的 `forwardSecret`。 |
 
-<a id="known-limitations-and-deferred-work"></a>
+<a id="model-experience"></a>
+## 模型体验
+
+无，因为该插件只在 HTTP 表面校验转发的调用方证明，不贡献模型输入。
+
+#### KV Cache 影响
+
+无；请求准入不修改模型请求。
+
 ## 已知限制与延期工作
+
+<a id="known-limitations-and-deferred-work"></a>
 
 - 转发证明五秒后过期；入口每次请求重新签名，因此这只限制重放，不限制合法流量。
 - 密钥由入口与所有后端共享；轮换需重启整个集群。
 
-<a id="model-experience"></a>
-## 模型体验
-
-无。信任发生在 HTTP 表面，不会进入模型请求。
-
 <a id="dev-note"></a>
-## 开发备注
+### 开发备注
 
 <details>
 <summary>维护者的工作上下文 — 点击展开</summary>

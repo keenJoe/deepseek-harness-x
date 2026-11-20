@@ -27,20 +27,20 @@ id: 2026-11-05-user-principal
 baseline: false
 changes:
   - root: "event:agent/inbox/spliced"
-    previous: "2026-10-27-subagent-settlement-attribution"
-    after: "3feadef4a852c592588bc26d5d9042e4f84c788fac8b069613ce209c74485f6d"
+    previous: "2026-11-05-timeline-priority-notice"
+    after: "28e9e38addab30dab4b5ecdcc2e24b5c45129b4f8ed1a4434b53a61b6f200c0d"
     decision: same-version
   - root: "event:developer/message"
-    previous: "2026-10-27-subagent-settlement-attribution"
-    after: "ea15217f4fa96fac3f631b5bd5195e95f2228ec95e38768c7ec38388ef8d561d"
+    previous: "2026-11-05-timeline-priority-notice"
+    after: "39f49e817e073e65b29f8761446e58271ea26a6874895b1f0cc709189759f649"
     decision: same-version
   - root: "event:session/title-llm-request"
-    previous: "2026-10-27-subagent-settlement-attribution"
-    after: "90a5ec363ae60e3384b66524e552120ecf408c7ad665ec7892bc0deac1a6c096"
+    previous: "2026-11-05-timeline-priority-notice"
+    after: "5026c370f50fb86715f0b659335420b956a4f582515b828578baca2bd8eaae19"
     decision: same-version
   - root: "event:user/message"
-    previous: "2026-10-27-subagent-settlement-attribution"
-    after: "1841ab8689d5c09bd552835bcabee7e72cab37f0f0f1dba605d7c56322d27acb"
+    previous: "2026-11-05-timeline-priority-notice"
+    after: "97892829ae0f6f2a30506fab53c5ac4f80dbdc2668c960737ba70b45c7e34c38"
     decision: same-version
 ```
 

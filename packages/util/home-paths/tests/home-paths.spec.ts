@@ -15,6 +15,7 @@ import {
   dshCachePath,
   dshHomeDisplay,
   dshHomePath,
+  dshPath,
   expandHomePath,
   resolveAgentsHome,
   migrateLegacyRootToUser,
@@ -178,6 +179,27 @@ describe('dsh path helpers', () => {
       await rm(root, { recursive: true, force: true })
     }
   })
+
+  it.each([
+    [undefined, join(homedir(), '.dsh')],
+    ['', join(homedir(), '.dsh')],
+    ['~/env-dsh', join(homedir(), 'env-dsh')],
+    ['./relative-dsh', resolve('./relative-dsh')],
+  ] as const)('resolves category paths with DSH_HOME=%j', (home, expectedHome) => {
+    vi.stubEnv('DSH_HOME', home)
+    for (const category of ['config', 'data', 'state', 'cache', 'backup'] as const) {
+      expect(dshPath(category)).toBe(join(expectedHome, category))
+      expect(dshPath(category, 'owner', 'file.json')).toBe(join(expectedHome, category, 'owner', 'file.json'))
+    }
+  })
+
+  it('resolves a configured category home before the environment', () => {
+    vi.stubEnv('DSH_HOME', '~/env-dsh')
+    expect(dshPath({ category: 'state', dshHome: '~/explicit-dsh' }, 'logs')).toBe(join(homedir(), 'explicit-dsh', 'state', 'logs'))
+    expect(dshPath({ category: 'data', dshHome: undefined })).toBe(join(homedir(), 'env-dsh', 'data'))
+  })
+
+
 
   it('canonicalizes a watcher ancestor while preserving a missing suffix', async () => {
     const root = await mkdtemp(join(tmpdir(), 'dsh-watch-path-'))

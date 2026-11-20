@@ -39,13 +39,16 @@ Cordis already supports this. `Context.isolate(name, label)` gives one service n
 A new service owns the realms:
 
 ```ts
+import { Service, type Context } from '@deepseek-ai/cordis'
+import type { UserPrincipal } from '@deepseek-ai/dsh-user-principal'
+
 /** One isolated durable-service realm per logged-in person. */
-export class UserRealmRegistry extends Service {
+export abstract class UserRealmRegistry extends Service {
   /**
    * @param user - the authenticated principal.
    * @returns the realm serving this person, created on first use.
    */
-  obtain(user: UserPrincipal): Promise<Context>
+  abstract obtain(user: UserPrincipal): Promise<Context>
 }
 ```
 

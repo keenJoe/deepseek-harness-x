@@ -57,6 +57,8 @@ Examples:
   dsh plugin --profile tui add <package>    install a plugin into the tui profile
   dsh serve-users --profile web --users alice,bob
                                             run one instance per person, each with its own home
+  dsh route-users --profile web --users alice,bob
+                                            run one entry plus one instance per person behind one URL
 
 ```
 

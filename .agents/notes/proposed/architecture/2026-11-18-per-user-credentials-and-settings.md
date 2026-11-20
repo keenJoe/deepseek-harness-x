@@ -51,7 +51,7 @@ The authorization question is not only which endpoint a user may call but which 
 
 ### 4. Keep account-scoped state out of the user surface
 
-`account-controller` streams the deployment's DeepSeek account state ([`packages/api/account-controller/src/index.ts`](../../../../packages/api/account-controller/src/index.ts)). That is one account for the deployment, not a per-person fact, and it stays owner-only: the policy continues to resolve no binding for it.
+`deepseek-account` streams the deployment's DeepSeek account state ([`packages/account/deepseek-account/src/index.ts`](../../../../packages/account/deepseek-account/src/index.ts)). That is one account for the deployment, not a per-person fact, and it stays owner-only: the policy continues to resolve no binding for it.
 
 ## Alternatives considered
 
@@ -77,6 +77,6 @@ The authorization question is not only which endpoint a user may call but which 
 
 **Secret redaction now runs per realm.** `settings.describe({ redactSecrets: true })` is how the wire avoids returning a secret. A realm that leaks an unredacted descriptor returns one person's key to that person's browser, which is correct, and to any caller that reaches the realm, which is not. The redaction path stays the same code; what changes is how many instances run it.
 
-**A user's key is unvalidated until first use.** `resolveDeepSeekApiKey` validates at request time ([`packages/llm/llm-deepseek/src/credential.ts:15`](../../../../packages/llm/llm-deepseek/src/credential.ts)); a typo surfaces as a failed turn rather than as a rejected save. The Settings surface should verify on write so the person learns at the moment they can fix it.
+**A user's key is unvalidated until first use.** `ctx.deepseekAuth` normalizes the stored key per request ([`packages/account/deepseek-auth/src/index.ts`](../../../../packages/account/deepseek-auth/src/index.ts)); a typo surfaces as a failed turn rather than as a rejected save. The Settings surface should verify on write so the person learns at the moment they can fix it.
 
 **Revocation is now per person.** Clearing a deployment key used to disable every user at once. A per-user store means the operator must reach into each document to revoke, and there is no admin surface for it in this proposal.

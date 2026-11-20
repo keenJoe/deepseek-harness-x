@@ -50,20 +50,25 @@ The config `id` is the registry id: it selects the provider in `?provider=`, key
 | `requestTimeoutMs` | `30000` | Deadline for each token and user-info request. |
 | `defaultTenant` | — | Tenant id used when the user-info response carries no tenant key. |
 
-<a id="known-limitations-and-deferred-work"></a>
+<a id="model-experience"></a>
+## Model Experience
+
+None, as the adapter resolves a browser identity over HTTP and contributes no model input.
+
+#### KV Cache effect
+
+None; login does not modify model requests.
+
 ## Known Limitations and Deferred Work
+
+<a id="known-limitations-and-deferred-work"></a>
 
 - The adapter performs no local signature check: Feishu issues no `id_token`, so the HTTPS token endpoint authenticated by `app_secret` is the authority.
 - The authorization redirect does not forward a PKCE challenge; Feishu authenticates the token request with the app secret instead.
 - The app must be granted `contact:user.base:readonly` (or the configured scopes) and its redirect URI must be registered in the Feishu console.
 
-<a id="model-experience"></a>
-## Model Experience
-
-None. Login runs in the browser and the resolved identity never reaches a model request.
-
 <a id="dev-note"></a>
-## Dev Note
+### Dev Note
 
 <details>
 <summary>Working context for maintainers — click to expand</summary>

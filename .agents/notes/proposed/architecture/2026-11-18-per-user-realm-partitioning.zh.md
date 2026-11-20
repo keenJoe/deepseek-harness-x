@@ -39,13 +39,16 @@ Cordis 已支持这一点。`Context.isolate(name, label)` 让一个服务名在
 一个新服务拥有这些 realm：
 
 ```ts
+import { Service, type Context } from '@deepseek-ai/cordis'
+import type { UserPrincipal } from '@deepseek-ai/dsh-user-principal'
+
 /** One isolated durable-service realm per logged-in person. */
-export class UserRealmRegistry extends Service {
+export abstract class UserRealmRegistry extends Service {
   /**
    * @param user - the authenticated principal.
    * @returns the realm serving this person, created on first use.
    */
-  obtain(user: UserPrincipal): Promise<Context>
+  abstract obtain(user: UserPrincipal): Promise<Context>
 }
 ```
 

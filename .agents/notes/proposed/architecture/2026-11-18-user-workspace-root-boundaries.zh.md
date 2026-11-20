@@ -12,7 +12,7 @@ Status: proposed
 
 `workspace.create` 把 `request.path` 直接传给 `workspaceRegistry.create`（[`packages/api/workspace-controller/src/commands.ts:52`](../../../../packages/api/workspace-controller/src/commands.ts)）。该方法会规范化路径并要求目录已存在（[`packages/workspace/workspace/src/index.ts:240`](../../../../packages/workspace/workspace/src/index.ts)），这能拒绝拼写错误，但会接纳该进程可 stat 的任何目录。
 
-模型自己就能移动边界。`working_directory` 工具把其 `cd` 参数转给 `workingDirectory.set`（[`packages/session/tool-working-directory/src/index.ts:36`](../../../../packages/session/tool-working-directory/src/index.ts)），而只要 `fs.stat` 报告这是个目录，`set` 就接受（[`packages/session/working-directory/src/index.ts:163`](../../../../packages/session/working-directory/src/index.ts)）。会话工作目录随后成为沙箱 `workspace-write` 根（[`packages/sandbox/sandbox-policy/src/index.ts`](../../../../packages/sandbox/sandbox-policy/src/index.ts) 的 `resolve()`），因此这次移动同时也放宽了可写根。
+模型自己就能移动边界。SDK 的 `setWorkingDirectory` 把其路径转给 `workingDirectory.set`（[`packages/sdk/server/src/server.ts:450`](../../../../packages/sdk/server/src/server.ts)），而只要 `fs.stat` 报告这是个目录，`set` 就接受（[`packages/session/working-directory/src/index.ts:204`](../../../../packages/session/working-directory/src/index.ts)）。会话工作目录随后成为沙箱 `workspace-write` 根（[`packages/sandbox/sandbox-policy/src/index.ts`](../../../../packages/sandbox/sandbox-policy/src/index.ts) 的 `resolve()`），因此这次移动同时也放宽了可写根。
 
 Remote 访问策略没有堵住这一点：`USER_GLOBAL_ROLE` 向每个已准入用户授予 `session/create` 与 `workspace/create`（[`packages/api/remote-access/src/user-policy.ts`](../../../../packages/api/remote-access/src/user-policy.ts)），所以上述路径在设计上就是可达的。
 
@@ -25,8 +25,10 @@ Remote 访问策略没有堵住这一点：`USER_GLOBAL_ROLE` 向每个已准入
 **一个解析器。** 在 [`packages/identity/user-principal`](../../../../packages/identity/user-principal/src/index.ts) 中新增一个函数，返回某 principal 的工作区边界：
 
 ```ts
+import type { Principal } from '@deepseek-ai/dsh-typert-protocol'
+
 /** Absolute writable workspace boundary for one principal; the operator keeps the deployment root. */
-export function workspaceBoundaryOf(principal: Principal): string
+export declare function workspaceBoundaryOf(principal: Principal): string
 ```
 
 对 `user` principal，它返回 `userHomePath(String(userId(principal)), 'workspaces')`（[`packages/util/home-paths/src/index.ts:181`](../../../../packages/util/home-paths/src/index.ts)）。对 operator 与进程内代码，它返回配置的部署工作区根，从而保持单用户行为。

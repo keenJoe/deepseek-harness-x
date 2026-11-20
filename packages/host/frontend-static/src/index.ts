@@ -4,8 +4,10 @@
  * with explicit index entry points. A readable index renders at the dist root
  * and configured index path; missing paths return 404, traversal outside the
  * dist root is 403, unknown extensions ship as octet-stream, and non-GET/HEAD
- * is 405. An HTTP index request first passes Connection's browser
- * authentication and renders for the Peer it admits; an in-process read renders
+ * is 405. On a hosted deployment, an index navigation without a login session
+ * redirects to the login route before admission. An HTTP index request passes
+ * Connection's browser
+ * authentication and renders for its admitted Peer; an in-process read renders
  * for the Peer its caller admitted. Both renders go through the webserver's
  * index render (structured injection rows, then raw taps). Non-index assets
  * stay public; every file other than the index carries a weak ETag with
@@ -81,12 +83,8 @@ function bytesBody(bytes: Uint8Array): ReadableStream<Uint8Array> {
  * @param request - the request; only its method and URL path are read.
  * @param distRoot - absolute dist root directory (resolved by the caller).
  * @param distIndex - absolute path of index.html inside distRoot.
- * @param authorizeIndex - answers an index request before its bytes are read:
- * the Peer it admitted, or the response to send instead of the index.
- * @param renderIndex - turns the raw index.html body into the served document
- * for the dist root and configured index path, rendered for `peer`.
- * @param peer - the Peer an in-process read was admitted for; an HTTP request
- * resolves its Peer through `authorizeIndex`.
+ * @param renderIndex - present for index requests to turn the raw index.html
+ * into the served document; omitted for ordinary static files.
  * @returns the dist response; a HEAD response carries the GET status and
  * headers without a body. A file other than the index carries
  * `cache-control: no-cache` and a weak ETag from a SHA-1 of its bytes, and a
@@ -94,9 +92,7 @@ function bytesBody(bytes: Uint8Array): ReadableStream<Uint8Array> {
  */
 async function serveStatic(
   request: Request, distRoot: string, distIndex: string,
-  authorizeIndex: () => PeerScope | Response,
-  renderIndex: (html: string, peer: PeerScope) => string,
-  peer: PeerScope | undefined,
+  renderIndex?: (html: string) => string,
 ): Promise<Response> {
   const target = resolve(normalize(join(distRoot, decodeURIComponent(new URL(request.url).pathname))))
   // Traversal rejection: the target must be distRoot itself (`/`) or stay under
@@ -106,10 +102,10 @@ async function serveStatic(
   let body: string | Uint8Array<ArrayBuffer>
   let headers: Record<string, string>
   try {
-    if (target === distRoot || target === distIndex) {
-      const admitted = peer ?? authorizeIndex()
-      if (admitted instanceof Response) return admitted
-      body = renderIndex(await readFile(distIndex, 'utf8'), admitted)
+    if (renderIndex !== undefined) {
+      const html = await readFile(distIndex, 'utf8')
+      request.signal.throwIfAborted()
+      body = renderIndex(html)
       headers = { 'content-type': HTML_MIME }
     } else {
       body = await readFile(target)
@@ -136,36 +132,36 @@ async function serveStatic(
 export function apply(ctx: Context, config: Config): void {
   const distIndex = config.distIndex
   const distRoot = dirname(distIndex)
-  // Connection's browser authentication writes the token exchange's 303 or
-  // the 401 through a writeHead/end response; capture it as a Fetch response.
-  // The answer stays a 401 unless Connection writes another one.
-  const authorizeIndex = (request: Request): PeerScope | Response => {
-    let status = 401
-    let headers = new Headers()
-    let body: string | undefined
-    const admitted = ctx.connection.authorizeIndex(request, {
-      writeHead(nextStatus, nextHeaders) {
-        status = nextStatus
-        headers = new Headers(nextHeaders)
-      },
-      end(text) { body = text },
-    })
-    return admitted ?? new Response(body, { status, headers })
+  // The dist root and the configured index file are the two page navigations;
+  // every other path is an ordinary asset.
+  const isIndexPath = (pathname: string): boolean => {
+    const target = resolve(normalize(join(distRoot, decodeURIComponent(pathname))))
+    return target === distRoot || target === distIndex
   }
+  // Fork extension: a hosted deployment sends an index navigation without a
+  // login session to its login route before the required policy answers 401.
+  // A single-user deployment never redirects here.
+  ctx.on('webserver/request', async (request, response, next) => {
+    if (!isIndexPath(new URL(request.url ?? '/', 'http://dsh.invalid').pathname)) { await next(); return }
+    if (!ctx.connection.hostedIndexRedirect(request, response)) await next()
+  })
   ctx.effect(() => ctx.webServer.registerFallback({
-    resource: (request, peer) => serveStatic(
-      request,
-      distRoot,
-      distIndex,
-      // An HTTP request carries no Peer and passes Connection's browser
-      // authentication; the admitted Peer it returns is the one the index
-      // renders for.
-      () => authorizeIndex(request),
+    auth: request => isIndexPath(request.url.pathname) ? 'required' : 'anonymous',
+    resource: (request, peer) => {
+      request.signal.throwIfAborted()
+      const target = resolve(normalize(join(distRoot, decodeURIComponent(new URL(request.url).pathname))))
+      if (target !== distRoot && target !== distIndex) return serveStatic(request, distRoot, distIndex)
+      // WebServer admits every index request before invoking this resource.
+      const pagePeer = peer as PeerScope
       // The base goes in after all index transforms, so it precedes every
       // resource reference they insert.
-      (html, indexPeer) => ctx.webServer.renderIndex(html, indexPeer)
-        .replace(/<head(?:\s[^>]*)?>/i, open => `${open}<base href="./">`),
-      peer,
-    ),
+      const render = (html: string): string => {
+        request.signal.throwIfAborted()
+        pagePeer.signal.throwIfAborted()
+        return ctx.webServer.renderIndex(html, pagePeer)
+          .replace(/<head(?:\s[^>]*)?>/i, open => `${open}<base href="./">`)
+      }
+      return serveStatic(request, distRoot, distIndex, render)
+    },
   }), 'frontend-static: fallback seat')
 }

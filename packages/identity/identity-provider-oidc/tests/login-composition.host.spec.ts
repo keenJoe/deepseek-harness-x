@@ -156,7 +156,9 @@ async function loadComposition(issuerOrigin: string): Promise<Context> {
         defaultTenant: TENANT,
       },
     },
-    { name: '@deepseek-ai/dsh-client-connection' },
+    // Hosted composition: the connection entry waits for the hosted-login
+    // services, so the Loader's load barrier covers the login routes.
+    { name: '@deepseek-ai/dsh-client-connection', inject: ['credentials', 'storageDomain'] },
   ]
   await writeFile(configPath, rows.map(row => '- ' + JSON.stringify({ ...row, name: 'cordis:' + row.name })).join('\n') + '\n')
   context = new Context()

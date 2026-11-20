@@ -1,6 +1,6 @@
 ---
 description: "Verifies the entry-signed caller header so a per-user backend admits entry-authenticated requests."
-kind: "package-library"
+kind: "package-reference"
 ---
 
 # @deepseek-ai/dsh-route-users-backend
@@ -43,19 +43,24 @@ The backend still mounts `client-connection`; this plugin only supplies the trus
 |---|---|---|
 | `forwardSecret` | Required | Shared forwarding secret, equal to the entry router’s `forwardSecret`. |
 
-<a id="known-limitations-and-deferred-work"></a>
+<a id="model-experience"></a>
+## Model Experience
+
+None, as the plugin verifies forwarded caller proofs on the HTTP surface and contributes no model input.
+
+#### KV Cache effect
+
+None; request admission does not modify model requests.
+
 ## Known Limitations and Deferred Work
+
+<a id="known-limitations-and-deferred-work"></a>
 
 - A forwarded proof expires after five seconds; the entry re-signs each request, so this only bounds replay, not legitimate traffic.
 - The secret is shared between the entry and every backend; rotate it by restarting the fleet.
 
-<a id="model-experience"></a>
-## Model Experience
-
-None. Trust runs on the HTTP surface and never reaches a model request.
-
 <a id="dev-note"></a>
-## Dev Note
+### Dev Note
 
 <details>
 <summary>Working context for maintainers — click to expand</summary>

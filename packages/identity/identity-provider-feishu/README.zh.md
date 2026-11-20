@@ -50,20 +50,25 @@ kind: "package-bundle"
 | `requestTimeoutMs` | `30000` | 每次 token 与用户信息请求的超时。 |
 | `defaultTenant` | — | 用户信息响应没有租户 key 时使用的租户 id。 |
 
-<a id="known-limitations-and-deferred-work"></a>
+<a id="model-experience"></a>
+## 模型体验
+
+无，因为适配器只在 HTTP 上解析浏览器身份，不贡献模型输入。
+
+#### KV Cache 影响
+
+无；登录不修改模型请求。
+
 ## 已知限制与延期工作
+
+<a id="known-limitations-and-deferred-work"></a>
 
 - 适配器不做本地签名校验：飞书不返回 `id_token`，因此以 `app_secret` 认证的 HTTPS token 端点是权威来源。
 - 授权重定向不转发 PKCE challenge；飞书改用 app secret 认证 token 请求。
 - 应用必须被授予 `contact:user.base:readonly`（或所配置的 scopes），且其回调地址需在飞书控制台登记。
 
-<a id="model-experience"></a>
-## 模型体验
-
-无。登录在浏览器完成，解析出的身份不会进入模型请求。
-
 <a id="dev-note"></a>
-## 开发备注
+### 开发备注
 
 <details>
 <summary>维护者的工作上下文 — 点击展开</summary>

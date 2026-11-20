@@ -1,6 +1,6 @@
 ---
 description: "从一个入口 URL 把每个已登录浏览器路由到其各自的 harness 后端。"
-kind: "package-library"
+kind: "package-reference"
 ---
 
 # @deepseek-ai/dsh-route-users
@@ -44,19 +44,24 @@ kind: "package-library"
 |---|---|---|
 | `ports` | 必填 | 规范用户键到 loopback 端口的映射。用户没有条目时请求返回 502。 |
 
-<a id="known-limitations-and-deferred-work"></a>
+<a id="model-experience"></a>
+## 模型体验
+
+无，因为每用户路由发生在 HTTP 表面，不贡献模型输入。
+
+#### KV Cache 影响
+
+无；路由不修改模型请求。
+
 ## 已知限制与延期工作
+
+<a id="known-limitations-and-deferred-work"></a>
 
 - 路由器只做 HTTP 流式转发，不重写绝对重定向或 WebSocket upgrade；需要这些的部署应让后端共用一个 authority。
 - hop-by-hop 头会被剥离；后端必须把入口当作客户端 authority。
 
-<a id="model-experience"></a>
-## 模型体验
-
-无。路由发生在 HTTP 表面，不会进入模型请求。
-
 <a id="dev-note"></a>
-## 开发备注
+### 开发备注
 
 <details>
 <summary>维护者的工作上下文 — 点击展开</summary>

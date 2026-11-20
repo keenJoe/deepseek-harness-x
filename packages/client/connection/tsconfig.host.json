@@ -8,10 +8,13 @@
   "files": [
     "src/api-path.ts",
     "src/api-request-trust.ts",
+    "src/authentication.ts",
     "src/browser-auth.ts",
     "src/client/random-uuid.ts",
     "src/client/rpc.ts",
     "src/connect-protocol.ts",
+    "src/connection-trust.ts",
+    "src/hosted-login.ts",
     "src/http-bridge.ts",
     "src/index.ts",
     "src/login.ts",
@@ -22,7 +25,7 @@
     "src/rpc-schema.ts",
     "src/rpc.ts",
     "src/storage.ts",
-    "src/connection-trust.ts"
+    "src/types.ts"
   ],
   "references": [
     {
@@ -47,12 +50,6 @@
       "path": "../../host/webserver"
     },
     {
-      "path": "../../typert/protocol"
-    },
-    {
-      "path": "../../util/brand"
-    },
-    {
       "path": "../../identity/identity-protocol"
     },
     {
@@ -63,6 +60,12 @@
     },
     {
       "path": "../../storage/storage-domain"
+    },
+    {
+      "path": "../../typert/protocol"
+    },
+    {
+      "path": "../../util/brand"
     }
   ]
 }

@@ -3,8 +3,8 @@
 # After editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/host/route-users/README.md
 /:
-  en: 2105978b397dad76
-  zh: abd9b78ffc4d233e
+  en: 7376651a948fd2f5
+  zh: 42400e5abf289e8b
 /deepseek-ai-dsh-route-users:
   en: cc2e4012a0e70b8b
   zh: cecd8882d71fcdf4
@@ -18,14 +18,17 @@
   en: d27e6a5b4f298dcc
   zh: 942154168a0a7013
 /deepseek-ai-dsh-route-users/config:
-  en: cbf7e80fddf3ae10
-  zh: 118f38cc66f4a876
-/deepseek-ai-dsh-route-users/known-limitations-and-deferred-work:
-  en: 536908a6f161ed44
-  zh: 4394e5caa2430ad5
+  en: c0fff6b27837d4c3
+  zh: 2835c1c519d47eef
 /deepseek-ai-dsh-route-users/model-experience:
-  en: 05e05025d4421667
-  zh: d9ef63bc75384712
-/deepseek-ai-dsh-route-users/dev-note:
-  en: 5de1d6304e00c58f
-  zh: 6d2630973a3dd550
+  en: d678dd8cbec3c165
+  zh: 48b7650e5c687509
+/deepseek-ai-dsh-route-users/model-experience/kv-cache-effect:
+  en: 6ee44e1b899c3290
+  zh: eb135a6dd0a444c3
+/deepseek-ai-dsh-route-users/known-limitations-and-deferred-work:
+  en: 28418f3ba501d1e9
+  zh: fd5339dfc598be5d
+/deepseek-ai-dsh-route-users/known-limitations-and-deferred-work/dev-note:
+  en: e67f633dc6fe7773
+  zh: 4c879960b94cc733

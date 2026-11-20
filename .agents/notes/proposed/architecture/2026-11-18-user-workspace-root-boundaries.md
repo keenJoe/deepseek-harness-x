@@ -12,7 +12,7 @@ Hosted multi-user Web admits several people into one harness, but three entry po
 
 `workspace.create` passes `request.path` straight to `workspaceRegistry.create` ([`packages/api/workspace-controller/src/commands.ts:52`](../../../../packages/api/workspace-controller/src/commands.ts)). That method canonicalizes the path and requires an existing directory ([`packages/workspace/workspace/src/index.ts:240`](../../../../packages/workspace/workspace/src/index.ts)), which rejects a typo but admits any directory the process can stat.
 
-The model can move the boundary itself. The `working_directory` tool forwards its `cd` argument to `workingDirectory.set` ([`packages/session/tool-working-directory/src/index.ts:36`](../../../../packages/session/tool-working-directory/src/index.ts)), and `set` accepts a directory whenever `fs.stat` reports one ([`packages/session/working-directory/src/index.ts:163`](../../../../packages/session/working-directory/src/index.ts)). The session working directory then becomes the sandbox `workspace-write` root ([`packages/sandbox/sandbox-policy/src/index.ts`](../../../../packages/sandbox/sandbox-policy/src/index.ts), `resolve()`), so the move widens the writable root as well.
+The model can move the boundary itself. SDK `setWorkingDirectory` forwards its path to `workingDirectory.set` ([`packages/sdk/server/src/server.ts:450`](../../../../packages/sdk/server/src/server.ts)), and `set` accepts a directory whenever `fs.stat` reports one ([`packages/session/working-directory/src/index.ts:204`](../../../../packages/session/working-directory/src/index.ts)). The session working directory then becomes the sandbox `workspace-write` root ([`packages/sandbox/sandbox-policy/src/index.ts`](../../../../packages/sandbox/sandbox-policy/src/index.ts), `resolve()`), so the move widens the writable root as well.
 
 The Remote access policy does not close this: `USER_GLOBAL_ROLE` grants `session/create` and `workspace/create` to every admitted user ([`packages/api/remote-access/src/user-policy.ts`](../../../../packages/api/remote-access/src/user-policy.ts)), so the paths above are reachable by design.
 
@@ -25,8 +25,10 @@ Introduce one resolved boundary per caller and enforce it at the operation that 
 **One resolver.** A new function in [`packages/identity/user-principal`](../../../../packages/identity/user-principal/src/index.ts) returns the workspace boundary for a principal:
 
 ```ts
+import type { Principal } from '@deepseek-ai/dsh-typert-protocol'
+
 /** Absolute writable workspace boundary for one principal; the operator keeps the deployment root. */
-export function workspaceBoundaryOf(principal: Principal): string
+export declare function workspaceBoundaryOf(principal: Principal): string
 ```
 
 For a `user` principal it returns `userHomePath(String(userId(principal)), 'workspaces')` ([`packages/util/home-paths/src/index.ts:181`](../../../../packages/util/home-paths/src/index.ts)). For the operator and for in-process code it returns the configured deployment workspace root, preserving single-user behavior.

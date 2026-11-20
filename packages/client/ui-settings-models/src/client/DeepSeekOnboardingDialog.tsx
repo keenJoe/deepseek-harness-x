@@ -8,7 +8,7 @@
 import type { TrackProductEvent } from '@deepseek-ai/dsh-client-product-analytics/client'
 import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
-import type { SnapshotStore } from '@deepseek-ai/dsh-client-store'
+import type { ObservableSnapshot, SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { InjectFace, PropsRuntime, PropsRenderSlots } from '@deepseek-ai/dsh-client-ui-slots'
 import type { ModelsSettingsState, ModelsSettingsStore } from './store.ts'
 import { onboardingReadiness } from './store.ts'
@@ -24,13 +24,16 @@ import styles from './DeepSeekOnboardingDialog.module.css'
 export interface DeepSeekOnboardingInjected {
   /** Desktop-only event collection. */
   track?: TrackProductEvent
-  /** Whether first-run setup should show automatically. Explicit requests remain available. */
-  automatic: boolean
   /** Whether the page serves a signed-in person of a hosted deployment; the step then opens its key editor. */
   hosted: boolean
   hooks: {
     /** Shared Models-page join state, bound by the slot renderer. */
     models: SnapshotStore<ModelsSettingsState>
+    /**
+     * Whether first-run setup should show automatically; the step reads it once when it mounts, so a later change
+     * never withdraws a step that already took its turn. Explicit requests remain available.
+     */
+    automatic: ObservableSnapshot<boolean>
   }
   /** Shared Models-page join controller. */
   controller: ModelsSettingsStore
@@ -58,8 +61,10 @@ function assertNever(_value: never): never {
  * @returns the onboarding modal or null when onboarding needs no intervention.
  */
 export function DeepSeekOnboardingDialog(props: DeepSeekOnboardingDialogProps): ReactNode {
-  const { complete, controller, useModels, operations, schema, t, renderSlot, automatic, hosted, explicit = false } = props
+  const { complete, controller, useModels, useAutomatic, operations, schema, t, renderSlot, hosted, explicit = false } = props
   const [apiKey, setApiKey] = useState(explicit || hosted)
+  const automaticOnMount = useAutomatic(value => value)
+  const [automatic] = useState(automaticOnMount)
   const state = useModels(snapshot => snapshot)
   const readiness = onboardingReadiness(state)
 
