@@ -19,7 +19,7 @@ import { DeepSeekOnboardingDialog } from '../src/client/DeepSeekOnboardingDialog
 import { WelcomeNotice } from '../src/client/WelcomeNotice.tsx'
 import type { IndexInjection, WebServer } from '@deepseek-ai/dsh-host-webserver'
 import * as hostPlugin from '../src/index.ts'
-import { ONBOARDING_CONFIG_GLOBAL } from '../src/onboarding-config.ts'
+import { hostedPage, ONBOARDING_CONFIG_GLOBAL } from '../src/onboarding-config.ts'
 
 /** The Peer an index render speaks for; this listener reads no field of it. */
 const PAGE_PEER = { principal: { kind: 'owner' } } as Parameters<WebServer['renderIndex']>[1]
@@ -78,7 +78,7 @@ describe('ui-settings-models apply', () => {
       await host.await()
       const rows: IndexInjection[] = []
       ctx.emit('webserver/index-inject', rows, PAGE_PEER)
-      expect(rows).toEqual([{ kind: 'global', name: ONBOARDING_CONFIG_GLOBAL, value: { credentialOnboarding: false } }])
+      expect(rows).toEqual([{ kind: 'global', name: ONBOARDING_CONFIG_GLOBAL, value: { credentialOnboarding: false, hosted: false } }])
       for (const row of rows) if (row.kind === 'global') vi.stubGlobal(row.name, row.value)
       const plugin = ctx.plugin({ inject: [...inject], apply })
       await plugin.await()
@@ -97,9 +97,27 @@ describe('ui-settings-models apply', () => {
     }
   })
 
+  it('reports a hosted page for a signed-in user principal', async () => {
+    const { ctx } = await bench()
+    try {
+      const host = ctx.plugin(hostPlugin, { credentialOnboarding: true })
+      await host.await()
+      const rows: IndexInjection[] = []
+      ctx.emit('webserver/index-inject', rows, {
+        principal: { kind: 'user', providerId: 'feishu', tenantId: 'tenant', subjectId: 'subject', displayName: 'Signed in' },
+      } as Parameters<WebServer['renderIndex']>[1])
+      expect(rows).toEqual([{ kind: 'global', name: ONBOARDING_CONFIG_GLOBAL, value: { credentialOnboarding: true, hosted: true } }])
+    } finally {
+      await ctx.fiber.dispose()
+    }
+  })
+
   it('defaults to browser onboarding and rejects malformed bootstrap options', async () => {
     expect(hostPlugin.Config({})).toEqual({ credentialOnboarding: true })
     expect(hostPlugin.Config['~standard'].validate({ credentialOnboarding: 'false' })).toHaveProperty('issues')
+    expect(hostedPage({ credentialOnboarding: true, hosted: true })).toBe(true)
+    expect(hostedPage({ credentialOnboarding: true, hosted: 'true' })).toBe(false)
+    expect(hostedPage(undefined)).toBe(false)
     const { ctx } = await bench()
     try {
       vi.stubGlobal(ONBOARDING_CONFIG_GLOBAL, { credentialOnboarding: 'false' })

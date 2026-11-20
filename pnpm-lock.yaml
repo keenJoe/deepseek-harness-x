@@ -5948,6 +5948,9 @@ importers:
       '@deepseek-ai/dsh-remote-mock':
         specifier: workspace:*
         version: link:../../test-support/remote-mock
+      '@deepseek-ai/dsh-user-principal':
+        specifier: workspace:*
+        version: link:../../identity/user-principal
       '@deepseek-ai/dsh-util-values':
         specifier: workspace:*
         version: link:../../util/values

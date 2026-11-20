@@ -37,7 +37,7 @@ kind: "package-reference"
 
 应用设置并关闭编辑器后，当前提供商、settings 与凭据快照就绪时才显示保存状态。打开任一行的编辑器、添加提供商和打开移除确认都会等待该刷新。新打开的 Models 区域或页面加载失败后的重试会等到 ready 快照后才挂载编辑器。后台刷新期间，只要编辑器仍挂载，已打开的草稿就会保留用户的修改；页面加载失败或提供商被移除可能关闭编辑器。
 
-Host 配置 `credentialOnboarding` 默认为 `true`。Electron preload 标记会抑制自动凭证引导和 Web 欢迎须知；模型设置页与显式 API Key 编辑仍然可用。[账号插件](../ui-settings-account/README.zh.md#desktop-onboarding)负责 Desktop 引导。其他原生壳可以通过 `credentialOnboarding: false` 仅禁用凭证步骤。Host 通过 `webserver/index-inject` 发布这个公开的布尔值，Client 在注册弹窗前校验它。它是页面初始化数据，不是持久化的完成标记。
+Host 配置 `credentialOnboarding` 默认为 `true`。Electron preload 标记会抑制自动凭证引导和 Web 欢迎须知；模型设置页与显式 API Key 编辑仍然可用。[账号插件](../ui-settings-account/README.zh.md#desktop-onboarding)负责 Desktop 引导。其他原生壳可以通过 `credentialOnboarding: false` 仅禁用凭证步骤。Host 通过 `webserver/index-inject` 发布这个公开的布尔值，以及当前页面是否代表托管部署中已登录的人员；Client 在注册弹窗前校验两者。它们是页面初始化数据，不是持久化的完成标记。托管页面直接打开凭证编辑器而不显示账号选择，因为部署自身登录已经完成了人员认证。
 
 ### API 密钥
 
@@ -120,7 +120,7 @@ Models 页面包含 **DeepSeek 账号**（`deepseek-account`，英文为 **DeepS
 
 -----
 
-`settings.models.sign-in` 插槽让账号登录在凭证编辑器之前提供选择；没有贡献者时直接显示编辑器。关闭账号选择弹窗会结束整个引导步骤。从账号菜单显式重新打开时，即使已有提供者配置，也会进入同一个编辑器。
+`settings.models.sign-in` 插槽让账号登录在凭证编辑器之前提供选择；没有贡献者时，或在托管页面上，直接显示编辑器。关闭账号选择弹窗会结束整个引导步骤。从账号菜单显式重新打开时，即使已有提供者配置，也会进入同一个编辑器。
 
 <a id="model-experience"></a>
 ## 模型体验

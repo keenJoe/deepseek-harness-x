@@ -15,3 +15,20 @@ export const Config: z<Partial<Config>, Config> = z.object({
 
 /** Page-global key carrying only the public onboarding options. */
 export const ONBOARDING_CONFIG_GLOBAL = '__DSH_MODELS_ONBOARDING__'
+
+/** Options the Host publishes under {@link ONBOARDING_CONFIG_GLOBAL} for the rendered page. */
+export interface OnboardingPageConfig {
+  /** Resolved {@link Config.credentialOnboarding}. */
+  readonly credentialOnboarding: boolean
+  /** Whether the index renders for a signed-in person of a hosted deployment. */
+  readonly hosted: boolean
+}
+
+/**
+ * Read the hosted-page flag from the published page options.
+ * @param payload - value carried under {@link ONBOARDING_CONFIG_GLOBAL}, read as untrusted data.
+ * @returns whether a hosted deployment authenticated the page; `false` for any other value.
+ */
+export function hostedPage(payload: unknown): boolean {
+  return typeof payload === 'object' && payload !== null && Reflect.get(payload, 'hosted') === true
+}

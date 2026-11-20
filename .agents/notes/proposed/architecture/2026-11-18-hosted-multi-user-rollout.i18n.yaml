@@ -1,0 +1,34 @@
+# Bilingual-pair consistency record for 2026-11-18-hosted-multi-user-rollout.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/proposed/architecture/2026-11-18-hosted-multi-user-rollout.md
+/agent-note-hosted-multi-user-rollout-and-verification:
+  en: e7583111259c4291
+  zh: 04093efcbc5b8a29
+/agent-note-hosted-multi-user-rollout-and-verification/problem:
+  en: 11f6766b2603c950
+  zh: 9ccc6257b8446e32
+/agent-note-hosted-multi-user-rollout-and-verification/proposal:
+  en: 9a9f556602af3d49
+  zh: ceccc1974e5790ac
+/agent-note-hosted-multi-user-rollout-and-verification/proposal/the-composition:
+  en: eedd22e3e976a8f8
+  zh: 0ae3e0c4fb0005d8
+/agent-note-hosted-multi-user-rollout-and-verification/proposal/the-first-run-state:
+  en: 84e8639811ca986b
+  zh: 727cff65482790d2
+/agent-note-hosted-multi-user-rollout-and-verification/proposal/the-verification-suite:
+  en: 930d13e68c3510d6
+  zh: f27f3e8e377e2b4b
+/agent-note-hosted-multi-user-rollout-and-verification/proposal/rollout-order:
+  en: 104c4d765144f405
+  zh: d2f27e0d1f3d3925
+/agent-note-hosted-multi-user-rollout-and-verification/alternatives-considered:
+  en: 4f82fe19014763ad
+  zh: 2ae24906faa7469e
+/agent-note-hosted-multi-user-rollout-and-verification/acceptance-criteria:
+  en: b70a7b6f4aa2bd70
+  zh: 7905f06548867ccd
+/agent-note-hosted-multi-user-rollout-and-verification/risks:
+  en: dcbfa38fa30a3e48
+  zh: 8fd2125ddefc1349

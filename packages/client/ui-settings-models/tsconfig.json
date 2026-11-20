@@ -12,6 +12,9 @@
       "path": "../../host/webserver"
     },
     {
+      "path": "../../identity/user-principal"
+    },
+    {
       "path": "../../../vendor/schemastery"
     },
     {

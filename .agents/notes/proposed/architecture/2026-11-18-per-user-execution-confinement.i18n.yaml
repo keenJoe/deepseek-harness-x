@@ -1,0 +1,37 @@
+# Bilingual-pair consistency record for 2026-11-18-per-user-execution-confinement.md (docs/i18n/README.md): per heading
+# section, a hash of its English and Chinese blocks outside code blocks and generated regions.
+# After editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/proposed/architecture/2026-11-18-per-user-execution-confinement.md
+/agent-note-per-user-execution-confinement:
+  en: 835597141202817d
+  zh: 8826cf725b5b6cb0
+/agent-note-per-user-execution-confinement/problem:
+  en: fabbbcff99549168
+  zh: c5c196bb033cc532
+/agent-note-per-user-execution-confinement/proposal:
+  en: bb534acddda11215
+  zh: 226027b4dbc0d536
+/agent-note-per-user-execution-confinement/proposal/the-policy-carries-the-boundary:
+  en: cd6ec9317d3523b8
+  zh: 900b8a0b0634e9e9
+/agent-note-per-user-execution-confinement/proposal/clamp-the-mode-by-principal:
+  en: 992ea757b6eb5426
+  zh: 86f113f387fc56bc
+/agent-note-per-user-execution-confinement/proposal/extra-writable-roots-follow-the-same-rule:
+  en: af0881c182a61433
+  zh: 95fe1577d4b67f20
+/agent-note-per-user-execution-confinement/proposal/the-durable-stores-move-into-the-realm:
+  en: 4820d019df5064e3
+  zh: 98230b16396a6fe7
+/agent-note-per-user-execution-confinement/proposal/verify-the-tool-surface:
+  en: 9c7d16877f166eeb
+  zh: 9679bef0c6091382
+/agent-note-per-user-execution-confinement/alternatives-considered:
+  en: d6e258c14c89360c
+  zh: 8f0755dfa002e338
+/agent-note-per-user-execution-confinement/acceptance-criteria:
+  en: 587dfe0d9dca2f5a
+  zh: 3d63250b71f668b2
+/agent-note-per-user-execution-confinement/risks:
+  en: 4318b935329590bb
+  zh: a85c5a096ea4b55b

@@ -145,6 +145,7 @@ function harness(options: {
   const unusedHook = (() => { throw new Error('unused standard hook') }) as never
   const props: DeepSeekOnboardingDialogProps = {
     automatic: true,
+    hosted: false,
     stepId: 'deepseek-official',
     complete,
     openSection,
@@ -304,6 +305,18 @@ it('explicit account-menu setup reuses the editor without another login choice',
   render(<DeepSeekOnboardingDialog {...h.props} />)
   await waitFor(() => { expect(screen.getByRole('dialog')).toBeTruthy() })
   expect(choice).not.toHaveBeenCalled()
+  expect(h.complete).not.toHaveBeenCalled()
+})
+
+it('opens the key editor directly on a hosted page instead of the account choice', async () => {
+  const h = harness()
+  h.props.hosted = true
+  const choice = vi.fn()
+  h.props.renderSlot = (_name, _owner, options) => { choice(); return options?.fallback }
+  render(<DeepSeekOnboardingDialog {...h.props} />)
+  await waitFor(() => { expect(screen.getByRole('dialog')).toBeTruthy() })
+  expect(choice).not.toHaveBeenCalled()
+  expect(screen.getByLabelText(en.keyInput)).toBeTruthy()
   expect(h.complete).not.toHaveBeenCalled()
 })
 
